@@ -45,7 +45,9 @@ jobs:
         run: python -m alembic check
       - name: Build and smoke-test Docker Compose
         run: |
-          trap 'docker compose -f ../docker-compose.yml down -v' EXIT
+          export POSTGRES_USER=applyboard POSTGRES_PASSWORD=applyboard-ci-password POSTGRES_DB=applyboard
+          export JWT_SECRET=ci-only-secret-value-at-least-32-characters
+          trap 'docker compose -f ../docker-compose.yml logs; docker compose -f ../docker-compose.yml down -v' EXIT
           docker compose -f ../docker-compose.yml up --build -d --wait
           curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/health/ready
           curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:3000/
