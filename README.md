@@ -192,7 +192,7 @@ Set-Location .\backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend tests run against an isolated temporary SQLite database; CI also applies and checks migrations against PostgreSQL. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The current count is reported by the CI test run rather than a manually maintained estimate.
+Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend tests run against an isolated temporary SQLite database; CI also applies and checks migrations against PostgreSQL. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **30 test functions** across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
 
 Frontend checks:
 
