@@ -50,7 +50,7 @@ def test_duplicate_registration_returns_conflict(client: TestClient) -> None:
     assert response.status_code == 409
 
 
-def test_login_issues_bearer_token_and_me_returns_user(client: TestClient) -> None:
+def test_login_sets_httponly_session_cookies_and_me_returns_user(client: TestClient) -> None:
     register_user(client)
     login_response = client.post(
         "/auth/login",
@@ -58,13 +58,12 @@ def test_login_issues_bearer_token_and_me_returns_user(client: TestClient) -> No
     )
 
     assert login_response.status_code == 200
-    assert login_response.json()["token_type"] == "bearer"
-    token = login_response.json()["access_token"]
+    assert login_response.json() == {"authenticated": True}
+    cookies = login_response.headers.get_list("set-cookie")
+    assert any("applyboard_access=" in cookie and "HttpOnly" in cookie for cookie in cookies)
+    assert any("applyboard_refresh=" in cookie and "HttpOnly" in cookie for cookie in cookies)
 
-    me_response = client.get(
-        "/auth/me",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    me_response = client.get("/auth/me")
 
     assert me_response.status_code == 200
     assert me_response.json()["email"] == "person@example.com"
@@ -168,11 +167,10 @@ def test_login_is_rate_limited(
 def test_demo_login_creates_seeded_read_only_workspace(client: TestClient) -> None:
     response = client.post("/auth/demo")
     assert response.status_code == 200
-    token = response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    assert response.json() == {"authenticated": true}
 
-    me = client.get("/auth/me", headers=headers)
-    applications = client.get("/applications", headers=headers)
+    me = client.get("/auth/me")
+    applications = client.get("/applications")
 
     assert me.status_code == 200
     assert me.json()["email"] == "demo@applyboard.dev"
@@ -181,8 +179,9 @@ def test_demo_login_creates_seeded_read_only_workspace(client: TestClient) -> No
 
 
 def test_demo_workspace_rejects_application_mutations(client: TestClient) -> None:
-    token = client.post("/auth/demo").json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/auth/demo")
+    assert response.status_code == 200
+    headers = {"Origin": "http://localhost:5173"}
     payload = {
         "company": "New Company",
         "role": "Engineer",
@@ -194,3 +193,59 @@ def test_demo_workspace_rejects_application_mutations(client: TestClient) -> Non
     assert create.json()["detail"] == (
         "The demo workspace is read-only. Create an account to manage applications."
     )
+
+
+
+def test_refresh_rotates_and_revokes_previous_refresh_token(client: TestClient) -> None:
+    register_user(client)
+    login = client.post(
+        "/auth/login",
+        json={"email": "person@example.com", "password": "safe-password-123"},
+    )
+    old_refresh = login.cookies["applyboard_refresh"]
+
+    refreshed = client.post("/auth/refresh", headers={"Origin": "http://localhost:5173"})
+    assert refreshed.status_code == 200
+    assert refreshed.json() == {"authenticated": True}
+    new_refresh = refreshed.cookies["applyboard_refresh"]
+    assert new_refresh != old_refresh
+
+    replay = client.post(
+        "/auth/refresh",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Cookie": f"applyboard_refresh={old_refresh}",
+        },
+    )
+    assert replay.status_code == 401
+
+
+def test_cookie_authenticated_mutations_require_trusted_origin(client: TestClient) -> None:
+    register_user(client)
+    client.post(
+        "/auth/login",
+        json={"email": "person@example.com", "password": "safe-password-123"},
+    )
+    payload = {
+        "company": "Acme",
+        "role": "Engineer",
+        "platform": "Company website",
+    }
+
+    response = client.post("/applications", json=payload)
+
+    assert response.status_code == 403
+
+
+def test_logout_revokes_refresh_session(client: TestClient) -> None:
+    register_user(client)
+    client.post(
+        "/auth/login",
+        json={"email": "person@example.com", "password": "safe-password-123"},
+    )
+
+    logout = client.post("/auth/logout", headers={"Origin": "http://localhost:5173"})
+    refresh = client.post("/auth/refresh", headers={"Origin": "http://localhost:5173"})
+
+    assert logout.status_code == 204
+    assert refresh.status_code == 401
