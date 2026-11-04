@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from typing import Any, cast
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -25,7 +26,7 @@ def create_database_engine(database_url: str = DATABASE_URL) -> Engine:
             dbapi_connection: object,
             connection_record: object,
         ) -> None:
-            cursor = dbapi_connection.cursor()
+            cursor = cast(Any, dbapi_connection).cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
