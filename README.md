@@ -90,6 +90,8 @@ OpenAPI/Swagger is available at `http://localhost:8000/docs` while the API is ru
 | `POST` | `/auth/register` | Public | Create account |
 | `POST` | `/auth/login` | Public | Return bearer access token |
 | `POST` | `/auth/demo` | Public, rate-limited | Open a read-only sample workspace |
+| `POST` | `/auth/refresh` | Refresh cookie | Rotate the refresh session and issue a new access cookie |
+| `POST` | `/auth/logout` | Refresh cookie | Revoke the refresh session and clear auth cookies |
 | `GET` | `/auth/me` | Bearer token | Read current user |
 | `GET` | `/applications` | Bearer token | Search/filter/sort/paginate owned applications |
 | `POST` | `/applications` | Bearer token | Create application |
@@ -172,6 +174,7 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `POSTGRES_PASSWORD` | Docker Compose | Local PostgreSQL password; use URL-safe characters |
 | `POSTGRES_DB` | Docker Compose | Local PostgreSQL database name |
 | `RATE_LIMIT_STORAGE_URI` | No | SlowAPI storage URL; use Redis for shared production limits |
+| `COOKIE_SECURE` | No | Set `true` behind HTTPS; defaults to `false` for local development |
 | `SMTP_HOST` | For email reminders | SMTP server hostname |
 | `SMTP_PORT` | No | SMTP port; defaults to `587` |
 | `SMTP_USERNAME` | For authenticated SMTP | SMTP username |
@@ -238,7 +241,7 @@ The repository includes a `render.yaml` Blueprint for the PostgreSQL database, D
 4. After connection testing, restrict backend CORS to the exact deployed frontend origin and redeploy.
 5. Use HTTPS for both services, enable provider backups for PostgreSQL, and use the platform secret manager for all credentials. Never use local Compose credentials in production.
 
-The UI currently stores the short-lived bearer token in browser `sessionStorage`; this is cleared when the tab session ends or a `401` response indicates expiration. A production migration to secure, `HttpOnly`, `SameSite` cookies, refresh-token rotation, and CSRF protections remains recommended.
+The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `SameSite=Lax` cookies. Refresh tokens are stored only as SHA-256 hashes, rotated on refresh, and revoked on logout. Cookie-authenticated write requests require an allowed `Origin`; set `COOKIE_SECURE=true` behind HTTPS (the Render Blueprint does this). Bearer authentication remains accepted for existing API clients.
 
 ## Vercel backend deployment
 
