@@ -262,7 +262,7 @@ Set-Location .\backend
 .\.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
-Redeploy the backend after saving environment variables. Check `https://<backend-domain>/health/ready`; a `200` response confirms the database and required user table are available. A `503` response indicates that `DATABASE_URL` is unreachable or the migrations have not been applied.
+Redeploy the backend after saving environment variables. Check `https://<backend-domain>/health/ready`; a `200` response confirms the database, refresh-session table, and follow-up reminder column are available. A `503` response indicates that `DATABASE_URL` is unreachable or the migrations have not been applied.
 
 [![Coverage](https://codecov.io/gh/ADAMDEV01/applyboard/branch/main/graph/badge.svg)](https://codecov.io/gh/ADAMDEV01/applyboard)
 
