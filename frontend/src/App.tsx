@@ -58,10 +58,13 @@ function ProtectedLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   const logout = async () => {
-    await api.logout()
-    client.clear()
-    setIsAuthenticated(false)
-    navigate('/login', { replace: true })
+    try {
+      await api.logout()
+    } finally {
+      client.clear()
+      setIsAuthenticated(false)
+      navigate('/login', { replace: true })
+    }
   }
 
   return (
