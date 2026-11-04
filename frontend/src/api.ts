@@ -110,7 +110,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-  me: () => request<{ id: number; email: string; created_at: string }>('/auth/me'),
+  async me() {
+    const user = await request<{ id: number; email: string; created_at: string }>('/auth/me')
+    sessionStorage.setItem(AUTH_KEY, '1')
+    if (user.email === 'demo@applyboard.dev') sessionStorage.setItem(DEMO_KEY, '1')
+    else sessionStorage.removeItem(DEMO_KEY)
+    return user
+  },
   summary: () => request<DashboardSummary>('/stats/summary'),
   platforms: () => request<PlatformMetrics[]>('/stats/platforms'),
   applications: (params = new URLSearchParams()) =>
