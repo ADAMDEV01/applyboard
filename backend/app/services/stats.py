@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Any
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import case, extract, func, select
@@ -111,7 +112,7 @@ def _aggregate_metrics(
         else_=None,
     )
     average_duration = case((duration >= 0, duration), else_=None)
-    columns: list[object] = [
+    columns: list[Any] = [
         func.count(Application.id),
         func.count(valid_response),
         func.avg(average_duration),
