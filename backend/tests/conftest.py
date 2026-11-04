@@ -9,6 +9,7 @@ from app.core import security
 from app.db.base import Base
 from app.db.database import create_database_engine, get_db
 from app.main import app
+from app.core.limiter import limiter
 
 
 @pytest.fixture
@@ -30,6 +31,7 @@ def client(
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    limiter._storage.reset()
     monkeypatch.setattr(security, "JWT_SECRET", "test-secret-" + "x" * 32)
 
     with TestClient(app) as test_client:
