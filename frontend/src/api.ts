@@ -8,16 +8,14 @@ import type {
   ResponseMetrics,
 } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-const TOKEN_KEY = 'job-tracker-access-token'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const AUTH_KEY = 'applyboard-authenticated'
+const DEMO_KEY = 'applyboard-demo-session'
 
 export class ApiError extends Error {
   readonly status: number
 
-  constructor(
-    message: string,
-    status: number,
-  ) {
+  constructor(message: string, status: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
@@ -25,22 +23,49 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = sessionStorage.getItem(TOKEN_KEY)
   const headers = new Headers(init.headers)
   if (init.body) headers.set('Content-Type', 'application/json')
-  if (token) headers.set('Authorization', `Bearer ${token}`)
+
+  const requestInit: RequestInit = {
+    ...init,
+    headers,
+    credentials: 'include',
+  }
 
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
+    response = await fetch(`${API_BASE_URL}${path}`, requestInit)
   } catch {
     throw new ApiError('Could not reach the API. Check the server and try again.', 0)
   }
 
-  if (response.status === 401 && token) {
-    sessionStorage.removeItem(TOKEN_KEY)
-    window.dispatchEvent(new Event('auth:expired'))
+  const publicAuthPaths = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/demo',
+    '/auth/refresh',
+    '/auth/logout',
+  ]
+  if (response.status === 401 && !publicAuthPaths.includes(path)) {
+    try {
+      const refreshed = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (refreshed.ok) {
+        response = await fetch(`${API_BASE_URL}${path}`, requestInit)
+      } else {
+        sessionStorage.removeItem(AUTH_KEY)
+        sessionStorage.removeItem(DEMO_KEY)
+        window.dispatchEvent(new Event('auth:expired'))
+      }
+    } catch {
+      sessionStorage.removeItem(AUTH_KEY)
+      sessionStorage.removeItem(DEMO_KEY)
+      window.dispatchEvent(new Event('auth:expired'))
+    }
   }
+
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { detail?: string } | null
     const detail = typeof body?.detail === 'string'
@@ -53,20 +78,45 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  hasToken: () => Boolean(sessionStorage.getItem(TOKEN_KEY)),
-  clearToken: () => sessionStorage.removeItem(TOKEN_KEY),
+  hasToken: () => sessionStorage.getItem(AUTH_KEY) === '1',
+  clearToken: () => {
+    sessionStorage.removeItem(AUTH_KEY)
+    sessionStorage.removeItem(DEMO_KEY)
+  },
+  isDemo: () => sessionStorage.getItem(DEMO_KEY) === '1',
+  async demoLogin() {
+    await request<{ authenticated: boolean }>('/auth/demo', { method: 'POST' })
+    sessionStorage.setItem(AUTH_KEY, '1')
+    sessionStorage.setItem(DEMO_KEY, '1')
+  },
   async login(email: string, password: string) {
-    const result = await request<{ access_token: string; token_type: string }>('/auth/login', {
+    await request<{ authenticated: boolean }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
-    sessionStorage.setItem(TOKEN_KEY, result.access_token)
+    sessionStorage.setItem(AUTH_KEY, '1')
+    sessionStorage.removeItem(DEMO_KEY)
+  },
+  async logout() {
+    try {
+      await request<void>('/auth/logout', { method: 'POST' })
+    } finally {
+      sessionStorage.removeItem(AUTH_KEY)
+      sessionStorage.removeItem(DEMO_KEY)
+    }
   },
   register: (email: string, password: string) =>
     request<{ id: number; email: string; created_at: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  async me() {
+    const user = await request<{ id: number; email: string; created_at: string }>('/auth/me')
+    sessionStorage.setItem(AUTH_KEY, '1')
+    if (user.email === 'demo@applyboard.dev') sessionStorage.setItem(DEMO_KEY, '1')
+    else sessionStorage.removeItem(DEMO_KEY)
+    return user
+  },
   summary: () => request<DashboardSummary>('/stats/summary'),
   platforms: () => request<PlatformMetrics[]>('/stats/platforms'),
   applications: (params = new URLSearchParams()) =>

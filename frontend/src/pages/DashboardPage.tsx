@@ -79,9 +79,9 @@ export function DashboardPage() {
           <h1>Good progress starts with a clear view.</h1>
           <p className="muted">Track the work behind your next opportunity.</p>
         </div>
-        <button className="button button-primary" onClick={() => setEditing('new')} type="button">
+        {!api.isDemo() && <button className="button button-primary" onClick={() => setEditing('new')} type="button">
           <span aria-hidden="true">＋</span> Add application
-        </button>
+        </button>}
       </section>
 
       {error && <div className="error-banner" role="alert">{error.message}</div>}
@@ -103,7 +103,7 @@ export function DashboardPage() {
               <p className="eyebrow">READY WHEN YOU ARE</p>
               <h2>Turn your job search into a plan.</h2>
               <p className="muted">Add an application to see your progress, response patterns, and upcoming follow-ups here.</p>
-              <button className="button button-primary" onClick={() => setEditing('new')} type="button">Add your first application</button>
+              {!api.isDemo() && <button className="button button-primary" onClick={() => setEditing('new')} type="button">Add your first application</button>}
             </section>
           ) : (
             <>
@@ -189,8 +189,8 @@ export function DashboardPage() {
             </div>
             <ApplicationTable
               applications={applications}
-              onEdit={setEditing}
-              onDelete={(application) => {
+              onEdit={api.isDemo() ? undefined : setEditing}
+              onDelete={api.isDemo() ? undefined : (application) => {
                 if (window.confirm(`Delete the ${application.role} application at ${application.company}? This cannot be undone.`)) {
                   deleteMutation.mutate(application.id)
                 }

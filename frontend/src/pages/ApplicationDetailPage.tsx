@@ -46,7 +46,7 @@ export function ApplicationDetailPage() {
         </div>
         <div className="detail-actions">
           {application.url && <a className="button button-quiet" href={application.url} target="_blank" rel="noreferrer">View posting ↗</a>}
-          <button className="button button-primary" onClick={() => setEditing(true)} type="button">Edit application</button>
+          {!api.isDemo() && <button className="button button-primary" onClick={() => setEditing(true)} type="button">Edit application</button>}
         </div>
       </section>
 

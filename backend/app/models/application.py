@@ -60,6 +60,7 @@ class Application(Base):
     platform: Mapped[str] = mapped_column(String(100), nullable=False)
     url: Mapped[str | None] = mapped_column(String(2048))
     follow_up_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    follow_up_reminder_sent_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     status: Mapped[ApplicationStatus] = mapped_column(
         status_enum("application_status"),
         nullable=False,

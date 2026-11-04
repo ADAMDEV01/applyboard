@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.dependencies.auth import CurrentUser
-from app.models import User
 from app.schemas.stats import DashboardSummary, PlatformMetrics, ResponseMetrics
 from app.services.stats import (
     get_dashboard_summary,

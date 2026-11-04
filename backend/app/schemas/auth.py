@@ -24,3 +24,7 @@ class UserRead(BaseModel):
 class TokenRead(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class SessionRead(BaseModel):
+    authenticated: bool = True

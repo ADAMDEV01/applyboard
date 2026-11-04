@@ -11,7 +11,7 @@ def test_analytics_count_unique_responses_and_separate_ghosting_from_inactivity(
 ) -> None:
     headers = authenticated_headers(client, "person@example.com")
     now = datetime.now(timezone.utc)
-    long_waiting = create_application(
+    create_application(
         client,
         headers,
         company="Long Wait Co",

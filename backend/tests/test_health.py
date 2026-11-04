@@ -30,7 +30,7 @@ def test_database_errors_are_cors_accessible(
     client.app.dependency_overrides[get_db] = unavailable_database
     response = client.get(
         "/health/ready",
-        headers={"Origin": "https://job-tracker-m6s6.vercel.app"},
+        headers={"Origin": "http://localhost:5173"},
     )
 
     assert response.status_code == 503
@@ -39,12 +39,20 @@ def test_database_errors_are_cors_accessible(
     }
     assert (
         response.headers["access-control-allow-origin"]
-        == "https://job-tracker-m6s6.vercel.app"
+        == "http://localhost:5173"
     )
 
 
-def test_api_cors_allows_any_origin_with_credentials(client: TestClient) -> None:
-    allowed_origin = client.options(
+def test_api_cors_allows_configured_origin_and_rejects_unknown_origin(client: TestClient) -> None:
+    allowed = client.options(
+        "/auth/me",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization, content-type",
+        },
+    )
+    rejected = client.options(
         "/auth/me",
         headers={
             "Origin": "https://untrusted.example",
@@ -52,9 +60,8 @@ def test_api_cors_allows_any_origin_with_credentials(client: TestClient) -> None
             "Access-Control-Request-Headers": "authorization, content-type",
         },
     )
-
-    assert allowed_origin.status_code == 200
-    assert allowed_origin.headers["access-control-allow-origin"] == "https://untrusted.example"
-    assert allowed_origin.headers["access-control-allow-credentials"] == "true"
-    assert "POST" in allowed_origin.headers["access-control-allow-methods"]
-    assert "authorization" in allowed_origin.headers["access-control-allow-headers"]
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert allowed.headers["access-control-allow-credentials"] == "true"
+    assert rejected.status_code == 400
+    assert "access-control-allow-origin" not in rejected.headers

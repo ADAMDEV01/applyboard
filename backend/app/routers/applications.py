@@ -13,6 +13,7 @@ from app.models import (
     ApplicationEvent,
     ApplicationEventType,
     ApplicationStatus,
+    User,
 )
 from app.schemas.application import (
     ApplicationCreate,
@@ -25,6 +26,15 @@ from app.schemas.application import (
 from app.services.applications import is_valid_status_transition
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+DEMO_EMAIL = "demo@applyboard.dev"
+
+
+def ensure_writable_user(current_user: User) -> None:
+    if current_user.email == DEMO_EMAIL:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The demo workspace is read-only. Create an account to manage applications.",
+        )
 
 
 def get_owned_application(
@@ -91,7 +101,7 @@ def list_applications(
     ).all()
 
     return ApplicationPage(
-        items=applications,
+        items=[ApplicationRead.model_validate(item) for item in applications],
         total=total,
         page=page,
         page_size=page_size,
@@ -109,6 +119,7 @@ def create_application(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Application:
+    ensure_writable_user(current_user)
     application_data = payload.model_dump()
     if payload.url is not None:
         application_data["url"] = str(payload.url)
@@ -145,6 +156,7 @@ def update_application(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Application:
+    ensure_writable_user(current_user)
     application = get_owned_application(application_id, current_user.id, db)
     update_data = payload.model_dump(exclude_unset=True)
 
@@ -163,6 +175,8 @@ def update_application(
 
     if "url" in update_data and update_data["url"] is not None:
         update_data["url"] = str(update_data["url"])
+    if "follow_up_at" in update_data:
+        application.follow_up_reminder_sent_at = None
     previous_status = application.status
     for field_name, value in update_data.items():
         setattr(application, field_name, value)
@@ -199,6 +213,7 @@ def delete_application(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
+    ensure_writable_user(current_user)
     application = get_owned_application(application_id, current_user.id, db)
     db.delete(application)
     db.commit()

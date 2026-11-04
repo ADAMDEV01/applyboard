@@ -37,9 +37,14 @@ const queryClient = new QueryClient({
 function ProtectedLayout() {
   const navigate = useNavigate()
   const client = useQueryClient()
-  const [isAuthenticated, setIsAuthenticated] = useState(api.hasToken())
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
+    api.hasToken() ? true : null,
+  )
 
   useEffect(() => {
+    if (isAuthenticated === null) {
+      api.me().then(() => setIsAuthenticated(true)).catch(() => setIsAuthenticated(false))
+    }
     const handleExpired = () => {
       setIsAuthenticated(false)
       client.clear()
@@ -47,15 +52,19 @@ function ProtectedLayout() {
     }
     window.addEventListener('auth:expired', handleExpired)
     return () => window.removeEventListener('auth:expired', handleExpired)
-  }, [client, navigate])
+  }, [client, isAuthenticated, navigate])
 
+  if (isAuthenticated === null) return <div className="loading-line">Checking your session…</div>
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
-  const logout = () => {
-    api.clearToken()
-    client.clear()
-    setIsAuthenticated(false)
-    navigate('/login', { replace: true })
+  const logout = async () => {
+    try {
+      await api.logout()
+    } finally {
+      client.clear()
+      setIsAuthenticated(false)
+      navigate('/login', { replace: true })
+    }
   }
 
   return (

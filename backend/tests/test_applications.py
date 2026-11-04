@@ -14,8 +14,8 @@ def authenticated_headers(client: TestClient, email: str) -> dict[str, str]:
         json={"email": email, "password": "safe-password-123"},
     )
     assert login.status_code == 200
-    token = login.json().get("access_token")
-    assert token, "login did not return access_token"
+    token = login.cookies.get("applyboard_access")
+    assert token, "login did not set the HttpOnly access cookie"
     return {"Authorization": f"Bearer {token}"}
 
 

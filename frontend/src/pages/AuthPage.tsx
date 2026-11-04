@@ -13,6 +13,7 @@ export function AuthPage({ mode }: Props) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [demoSubmitting, setDemoSubmitting] = useState(false)
 
   if (mode === 'login' && api.hasToken()) return <Navigate to="/" replace />
 
@@ -32,6 +33,19 @@ export function AuthPage({ mode }: Props) {
       setError(err instanceof Error ? err.message : 'Authentication failed.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function tryDemo() {
+    setError('')
+    setDemoSubmitting(true)
+    try {
+      await api.demoLogin()
+      navigate('/', { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo sign-in failed.')
+    } finally {
+      setDemoSubmitting(false)
     }
   }
 
@@ -62,6 +76,11 @@ export function AuthPage({ mode }: Props) {
             {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
         </form>
+        {mode === 'login' && (
+          <button className="button button-quiet button-wide demo-button" disabled={demoSubmitting || submitting} onClick={tryDemo} type="button">
+            {demoSubmitting ? 'Opening demo…' : 'Try the demo workspace'}
+          </button>
+        )}
         <p className="auth-switch">
           {mode === 'login' ? 'New to Applyboard?' : 'Already have an account?'}{' '}
           <Link to={mode === 'login' ? '/register' : '/login'}>

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 .venv/
 __pycache__/
 .pytest_cache/
@@ -10,16 +9,3 @@ __pycache__/
 htmlcov/
 node_modules/
 dist/
-=======
-.venv/
-__pycache__/
-.pytest_cache/
-*.py[cod]
-*.db
-*.sqlite3
-.env
-.coverage
-htmlcov/
-node_modules/
-dist/
->>>>>>> 9e21017a5c3f47da97337baab90eeb0df04fc2ca
