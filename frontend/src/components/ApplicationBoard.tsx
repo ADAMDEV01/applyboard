@@ -12,7 +12,7 @@ const columns: ApplicationStatus[] = [
 
 interface Props {
   applications: Application[]
-  onEdit: (application: Application) => void
+  onEdit?: (application: Application) => void
 }
 
 export function ApplicationBoard({ applications, onEdit }: Props) {
@@ -31,7 +31,7 @@ export function ApplicationBoard({ applications, onEdit }: Props) {
                 <Link to={`/applications/${application.id}`} className="kanban-company">{application.company}</Link>
                 <p>{application.role}</p>
                 <span>{application.platform}</span>
-                <button className="text-button" onClick={() => onEdit(application)} type="button">Edit details</button>
+                {onEdit && <button className="text-button" onClick={() => onEdit(application)} type="button">Edit details</button>}
               </article>
             ))}
           </section>
