@@ -4,7 +4,7 @@ Applyboard is a full-stack job-application tracker built as a portfolio project.
 
 ## Features
 
-- Argon2 password hashing, bearer JWT access tokens, and private user-scoped routes.
+- Argon2 password hashing, HttpOnly access cookies, rotating refresh sessions, and private user-scoped routes.
 - One-click, read-only demo workspace with five seeded applications and event history.
 - Application create, read, update, and delete with search, platform/status filters, pagination, and sorting.
 - Explicit status-transition rules and a chronological event history.
@@ -19,7 +19,7 @@ Applyboard is a full-stack job-application tracker built as a portfolio project.
 
 ```mermaid
 flowchart LR
-    Browser[React + TypeScript / Vite] -->|JSON + bearer JWT| API[FastAPI routers]
+    Browser[React + TypeScript / Vite] -->|JSON + HttpOnly cookies| API[FastAPI routers]
     API --> Auth[Authentication dependency]
     API --> Services[Application and analytics services]
     Auth --> Models[SQLAlchemy 2 models]
@@ -88,20 +88,20 @@ OpenAPI/Swagger is available at `http://localhost:8000/docs` while the API is ru
 |---|---|---|---|
 | `GET` | `/health` | Public | Liveness check |
 | `POST` | `/auth/register` | Public | Create account |
-| `POST` | `/auth/login` | Public | Return bearer access token |
+| `POST` | `/auth/login` | Public | Set HttpOnly access and refresh cookies |
 | `POST` | `/auth/demo` | Public, rate-limited | Open a read-only sample workspace |
 | `POST` | `/auth/refresh` | Refresh cookie | Rotate the refresh session and issue a new access cookie |
 | `POST` | `/auth/logout` | Refresh cookie | Revoke the refresh session and clear auth cookies |
-| `GET` | `/auth/me` | Bearer token | Read current user |
-| `GET` | `/applications` | Bearer token | Search/filter/sort/paginate owned applications |
-| `POST` | `/applications` | Bearer token | Create application |
-| `GET` | `/applications/{application_id}` | Bearer token | Read owned application |
-| `PATCH` | `/applications/{application_id}` | Bearer token | Update owned application |
-| `DELETE` | `/applications/{application_id}` | Bearer token | Delete owned application |
-| `GET` | `/applications/{application_id}/events` | Bearer token | Read owned application history |
-| `GET` | `/stats/summary` | Bearer token | Dashboard metrics and follow-up candidates |
-| `GET` | `/stats/platforms` | Bearer token | Per-platform response metrics |
-| `GET` | `/stats/responses` | Bearer token | Overall response metrics |
+| `GET` | `/auth/me` | Auth cookie or bearer token | Read current user |
+| `GET` | `/applications` | Auth cookie or bearer token | Search/filter/sort/paginate owned applications |
+| `POST` | `/applications` | Auth cookie or bearer token | Create application |
+| `GET` | `/applications/{application_id}` | Auth cookie or bearer token | Read owned application |
+| `PATCH` | `/applications/{application_id}` | Auth cookie or bearer token | Update owned application |
+| `DELETE` | `/applications/{application_id}` | Auth cookie or bearer token | Delete owned application |
+| `GET` | `/applications/{application_id}/events` | Auth cookie or bearer token | Read owned application history |
+| `GET` | `/stats/summary` | Auth cookie or bearer token | Dashboard metrics and follow-up candidates |
+| `GET` | `/stats/platforms` | Auth cookie or bearer token | Per-platform response metrics |
+| `GET` | `/stats/responses` | Auth cookie or bearer token | Overall response metrics |
 
 List query parameters are `page` (default `1`), `page_size` (default `20`, maximum `100`), `search`, `status`, `platform`, `sort_by` (`applied_at`, `company`, or `last_update_at`), and `order` (`asc` or `desc`). Invalid request input returns `422`; invalid credentials return `401`; another user’s application is indistinguishable from a missing application (`404`); duplicate email is `409`; invalid status transitions are `409`.
 
@@ -112,8 +112,8 @@ Register and log in:
 ```powershell
 $body = @{ email = "person@example.com"; password = "safe-password-123" } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri http://localhost:8000/auth/register -ContentType "application/json" -Body $body
-$login = Invoke-RestMethod -Method Post -Uri http://localhost:8000/auth/login -ContentType "application/json" -Body $body
-$headers = @{ Authorization = "Bearer $($login.access_token)" }
+$login = Invoke-RestMethod -Method Post -Uri http://localhost:8000/auth/login -ContentType "application/json" -Body $body -SessionVariable session
+$headers = @{ Origin = "http://localhost:5173" }
 ```
 
 Create, list, and inspect analytics:
@@ -127,9 +127,9 @@ $application = @{
   follow_up_at = (Get-Date).AddDays(7).ToUniversalTime().ToString("o")
   notes = "Contact recruiter next week"
 } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/applications -Headers $headers -ContentType "application/json" -Body $application
-Invoke-RestMethod -Uri "http://localhost:8000/applications?search=Engineer&page=1&page_size=20" -Headers $headers
-Invoke-RestMethod -Uri http://localhost:8000/stats/summary -Headers $headers
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/applications -Headers $headers -WebSession $session -ContentType "application/json" -Body $application
+Invoke-RestMethod -Uri "http://localhost:8000/applications?search=Engineer&page=1&page_size=20" -Headers $headers -WebSession $session
+Invoke-RestMethod -Uri http://localhost:8000/stats/summary -Headers $headers -WebSession $session
 ```
 
 ## Local development (Windows PowerShell)
@@ -241,7 +241,7 @@ The repository includes a `render.yaml` Blueprint for the PostgreSQL database, D
 4. After connection testing, restrict backend CORS to the exact deployed frontend origin and redeploy.
 5. Use HTTPS for both services, enable provider backups for PostgreSQL, and use the platform secret manager for all credentials. Never use local Compose credentials in production.
 
-The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `SameSite=Lax` cookies. Refresh tokens are stored only as SHA-256 hashes, rotated on refresh, and revoked on logout. Cookie-authenticated write requests require an allowed `Origin`; set `COOKIE_SECURE=true` behind HTTPS (the Render Blueprint does this). Bearer authentication remains accepted for existing API clients.
+The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `SameSite=Lax` cookies. Refresh tokens are stored only as SHA-256 hashes, rotated on refresh, and revoked on logout. Cookie-authenticated write requests require an allowed `Origin`; set `COOKIE_SECURE=true` behind HTTPS (the Render Blueprint does this). Bearer authentication remains accepted for existing API clients. The browser client does not read or store either token.
 
 ## Vercel backend deployment
 
