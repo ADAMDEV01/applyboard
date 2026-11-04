@@ -150,3 +150,16 @@ def test_login_reports_missing_jwt_configuration(
     )
 
     assert response.status_code == 503
+
+
+def test_login_is_rate_limited(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(security, "verify_password", lambda _password, _hashed: True)
+    payload = {"email": "unknown@example.com", "password": "safe-password-123"}
+
+    responses = [client.post("/auth/login", json=payload) for _ in range(11)]
+
+    assert all(response.status_code == 401 for response in responses[:10])
+    assert responses[10].status_code == 429
