@@ -11,6 +11,7 @@ Applyboard is a full-stack job-application tracker built as a portfolio project.
 - Dashboard analytics for unique applications, response rates, response time, follow-ups, and possible ghosting.
 - Responsive React/TypeScript interface with status/platform charts, application search, history, and a Kanban board.
 - CSV import/export for application records.
+- Daily email reminders for follow-ups due in the next 24 hours (SMTP configuration required).
 - Alembic-managed PostgreSQL schema; SQLite is the zero-setup local default.
 - Isolated backend tests with coverage enforcement, Docker Compose, and GitHub Actions.
 
@@ -171,6 +172,12 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `POSTGRES_PASSWORD` | Docker Compose | Local PostgreSQL password; use URL-safe characters |
 | `POSTGRES_DB` | Docker Compose | Local PostgreSQL database name |
 | `RATE_LIMIT_STORAGE_URI` | No | SlowAPI storage URL; use Redis for shared production limits |
+| `SMTP_HOST` | For email reminders | SMTP server hostname |
+| `SMTP_PORT` | No | SMTP port; defaults to `587` |
+| `SMTP_USERNAME` | For authenticated SMTP | SMTP username |
+| `SMTP_PASSWORD` | For authenticated SMTP | SMTP password |
+| `SMTP_FROM_EMAIL` | For email reminders | Verified sender email address |
+| `SMTP_TIMEOUT_SECONDS` | No | SMTP connection timeout; defaults to `20` |
 
 
 For production, set `CORS_ALLOWED_ORIGINS` to the exact comma-separated frontend origins and configure `RATE_LIMIT_STORAGE_URI` to a shared Redis instance when running multiple API workers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
@@ -218,7 +225,11 @@ docker compose up --build
 
 The Compose stack starts PostgreSQL with a named persistent volume, waits for the database health check, applies Alembic migrations in the API container, and serves the UI at `http://localhost:3000` and API at `http://localhost:8000`. To stop containers without removing data, use `docker compose down`. Removing the named volume destroys local database data; do so only when that is intended.
 
-## Deployment (Render example)
+## Deployment (Render)
+
+The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and daily follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide the SMTP host, username, password, and verified sender address for the cron service. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
+
+## Deployment (manual Render example)
 
 1. Create a managed PostgreSQL instance in Render and keep its internal connection URL private.
 2. Create a backend web service from the repository using `backend` as the root directory and its Dockerfile. Set `DATABASE_URL` to the provider URL using the `postgresql+psycopg://` SQLAlchemy driver and generate a unique `JWT_SECRET` with at least 32 random bytes. The backend image applies migrations before starting Uvicorn.
@@ -226,7 +237,7 @@ The Compose stack starts PostgreSQL with a named persistent volume, waits for th
 4. After connection testing, restrict backend CORS to the exact deployed frontend origin and redeploy.
 5. Use HTTPS for both services, enable provider backups for PostgreSQL, and use the platform secret manager for all credentials. Never use local Compose credentials in production.
 
-The UI currently stores the short-lived bearer token in browser `sessionStorage`; this is cleared when the tab session ends or a `401` response indicates expiration. For stricter production threat models, move token handling to secure, `HttpOnly`, `SameSite` cookies and add CSRF protections before deployment.
+The UI currently stores the short-lived bearer token in browser `sessionStorage`; this is cleared when the tab session ends or a `401` response indicates expiration. A production migration to secure, `HttpOnly`, `SameSite` cookies, refresh-token rotation, and CSRF protections remains recommended.
 
 ## Vercel backend deployment
 
