@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import CORS_ALLOWED_ORIGINS
 from app.core.limiter import limiter
 from app.db.database import get_db
-from app.models import User
+from app.models import Application, RefreshSession, User
 from app.routers.applications import router as applications_router
 from app.routers.auth import router as auth_router
 from app.routers.events import router as events_router
@@ -56,4 +56,6 @@ def health_check() -> dict[str, str]:
 @app.get("/health/ready", tags=["health"])
 def readiness_check(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(select(User.id).limit(1))
+    db.execute(select(RefreshSession.id).limit(1))
+    db.execute(select(Application.follow_up_reminder_sent_at).limit(1))
     return {"status": "ready"}
