@@ -3,10 +3,14 @@ import logging
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.config import CORS_ALLOWED_ORIGINS
+from app.core.limiter import limiter
 from app.db.database import get_db
 from app.models import User
 from app.routers.applications import router as applications_router
@@ -16,14 +20,12 @@ from app.routers.stats import router as stats_router
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="Job Tracker API",
-    version="0.1.0",
-)
-
+app = FastAPI(title="Job Tracker API", version="0.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,17 +34,10 @@ app.add_middleware(
 
 @app.exception_handler(SQLAlchemyError)
 async def handle_database_error(_request: Request, exc: SQLAlchemyError) -> JSONResponse:
-    logger.error(
-        "Database operation failed",
-        exc_info=(type(exc), exc, exc.__traceback__),
-    )
+    logger.error("Database operation failed", exc_info=(type(exc), exc, exc.__traceback__))
     return JSONResponse(
         status_code=503,
-        content={
-            "detail": (
-                "Database unavailable. Verify DATABASE_URL and apply Alembic migrations."
-            )
-        },
+        content={"detail": "Database unavailable. Verify DATABASE_URL and apply Alembic migrations."},
     )
 
 
