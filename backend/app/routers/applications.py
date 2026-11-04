@@ -175,6 +175,8 @@ def update_application(
 
     if "url" in update_data and update_data["url"] is not None:
         update_data["url"] = str(update_data["url"])
+    if "follow_up_at" in update_data:
+        application.follow_up_reminder_sent_at = None
     previous_status = application.status
     for field_name, value in update_data.items():
         setattr(application, field_name, value)
