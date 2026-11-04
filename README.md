@@ -241,4 +241,4 @@ Redeploy the backend after saving environment variables. Check `https://<backend
 
 ## Screenshots
 
-Screenshots are not included yet. Add genuine captures of the dashboard, applications list, and application history after running the app with non-personal demo data; no placeholder or fabricated UI images are used.
+Use **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.local`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.\n\nScreenshots are not included yet. Capture the dashboard, applications list, and application history from the running demo workspace before adding them here; no placeholder or fabricated UI images are used.
