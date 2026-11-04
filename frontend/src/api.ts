@@ -55,6 +55,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   hasToken: () => Boolean(sessionStorage.getItem(TOKEN_KEY)),
   clearToken: () => sessionStorage.removeItem(TOKEN_KEY),
+  async demoLogin() {
+    const result = await request<{ access_token: string; token_type: string }>('/auth/demo', { method: 'POST' })
+    sessionStorage.setItem(TOKEN_KEY, result.access_token)
+  },
   async login(email: string, password: string) {
     const result = await request<{ access_token: string; token_type: string }>('/auth/login', {
       method: 'POST',
