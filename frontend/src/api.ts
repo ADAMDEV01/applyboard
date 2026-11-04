@@ -10,6 +10,7 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const TOKEN_KEY = 'job-tracker-access-token'
+const DEMO_KEY = 'applyboard-demo-session'
 
 export class ApiError extends Error {
   readonly status: number
@@ -54,10 +55,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   hasToken: () => Boolean(sessionStorage.getItem(TOKEN_KEY)),
-  clearToken: () => sessionStorage.removeItem(TOKEN_KEY),
+  clearToken: () => { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(DEMO_KEY) },
+  isDemo: () => sessionStorage.getItem(DEMO_KEY) === '1',
   async demoLogin() {
     const result = await request<{ access_token: string; token_type: string }>('/auth/demo', { method: 'POST' })
     sessionStorage.setItem(TOKEN_KEY, result.access_token)
+    sessionStorage.setItem(DEMO_KEY, '1')
   },
   async login(email: string, password: string) {
     const result = await request<{ access_token: string; token_type: string }>('/auth/login', {
@@ -65,6 +68,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     })
     sessionStorage.setItem(TOKEN_KEY, result.access_token)
+    sessionStorage.removeItem(DEMO_KEY)
   },
   register: (email: string, password: string) =>
     request<{ id: number; email: string; created_at: string }>('/auth/register', {
