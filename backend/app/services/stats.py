@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import case, extract, func, select
@@ -110,7 +111,7 @@ def _aggregate_metrics(
         else_=None,
     )
     average_duration = case((duration >= 0, duration), else_=None)
-    columns = [
+    columns: list[object] = [
         func.count(Application.id),
         func.count(valid_response),
         func.avg(average_duration),
@@ -153,7 +154,7 @@ def _aggregate_metrics(
 
 
 def _follow_up_items(
-    applications: list[Application],
+    applications: Sequence[Application],
     current_time: datetime,
 ) -> list[FollowUpItem]:
     return [
