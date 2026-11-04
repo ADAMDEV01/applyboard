@@ -163,3 +163,34 @@ def test_login_is_rate_limited(
 
     assert all(response.status_code == 401 for response in responses[:10])
     assert responses[10].status_code == 429
+
+
+def test_demo_login_creates_seeded_read_only_workspace(client: TestClient) -> None:
+    response = client.post("/auth/demo")
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = client.get("/auth/me", headers=headers)
+    applications = client.get("/applications", headers=headers)
+
+    assert me.status_code == 200
+    assert me.json()["email"] == "demo@applyboard.local"
+    assert applications.status_code == 200
+    assert applications.json()["total"] == 5
+
+
+def test_demo_workspace_rejects_application_mutations(client: TestClient) -> None:
+    token = client.post("/auth/demo").json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "company": "New Company",
+        "role": "Engineer",
+        "platform": "Company website",
+    }
+
+    create = client.post("/applications", json=payload, headers=headers)
+    assert create.status_code == 403
+    assert create.json()["detail"] == (
+        "The demo workspace is read-only. Create an account to manage applications."
+    )
