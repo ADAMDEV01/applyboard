@@ -13,6 +13,7 @@ from app.models import (
     ApplicationEvent,
     ApplicationEventType,
     ApplicationStatus,
+    User,
 )
 from app.schemas.application import (
     ApplicationCreate,
