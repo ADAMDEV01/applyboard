@@ -85,9 +85,10 @@ jobs:
           NODE
           git -C .. config user.name "github-actions[bot]"
           git -C .. config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git -C .. switch -C "$target_branch"
           git -C .. add frontend/screenshots frontend/package-lock.json
           git -C .. commit -m "docs: add demo screenshots and sync frontend lockfile [skip ci]"
-          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           git -C .. pull --rebase origin "$target_branch"
           git -C .. push origin "HEAD:$target_branch"
       - name: Stop Docker Compose
