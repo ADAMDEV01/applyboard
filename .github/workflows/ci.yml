@@ -7,9 +7,26 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: applyboard
+          POSTGRES_PASSWORD: applyboard_ci_password
+          POSTGRES_DB: applyboard_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U applyboard -d applyboard_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://applyboard:applyboard_ci_password@localhost:5432/applyboard_ci
+      JWT_SECRET: ci-only-secret-value-at-least-32-characters
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,10 +37,14 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
       - run: python -m pip install -r requirements-dev.txt
-      - run: python -m pytest -q
-      - run: python -m alembic upgrade head
-        env:
-          DATABASE_URL: sqlite:///./ci-migrations.db
+      - run: ruff check app tests
+      - run: mypy app --ignore-missing-imports --follow-imports=silent
+      - name: Apply PostgreSQL migrations
+        run: python -m alembic upgrade head
+      - name: Verify model and migration parity
+        run: python -m alembic check
+      - name: Run isolated backend tests
+        run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
 
   frontend:
     runs-on: ubuntu-latest
