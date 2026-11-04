@@ -43,6 +43,12 @@ jobs:
         run: python -m alembic upgrade head
       - name: Verify model and migration parity
         run: python -m alembic check
+      - name: Build and smoke-test Docker Compose
+        run: |
+          trap 'docker compose -f ../docker-compose.yml down -v' EXIT
+          docker compose -f ../docker-compose.yml up --build -d --wait
+          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/health/ready
+          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:3000/
       - name: Run isolated backend tests
         run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
 
