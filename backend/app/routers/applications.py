@@ -91,7 +91,7 @@ def list_applications(
     ).all()
 
     return ApplicationPage(
-        items=applications,
+        items=[ApplicationRead.model_validate(item) for item in applications],
         total=total,
         page=page,
         page_size=page_size,
