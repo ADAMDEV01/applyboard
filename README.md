@@ -167,8 +167,10 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `POSTGRES_USER` | Docker Compose | Local PostgreSQL username |
 | `POSTGRES_PASSWORD` | Docker Compose | Local PostgreSQL password; use URL-safe characters |
 | `POSTGRES_DB` | Docker Compose | Local PostgreSQL database name |
+| `RATE_LIMIT_STORAGE_URI` | No | SlowAPI storage URL; use Redis for shared production limits |
 
-Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
+
+For production, set `CORS_ALLOWED_ORIGINS` to the exact comma-separated frontend origins and configure `RATE_LIMIT_STORAGE_URI` to a shared Redis instance when running multiple API workers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
 
 ## Migrations
 
@@ -234,6 +236,8 @@ Set-Location .\backend
 ```
 
 Redeploy the backend after saving environment variables. Check `https://<backend-domain>/health/ready`; a `200` response confirms the database and required user table are available. A `503` response indicates that `DATABASE_URL` is unreachable or the migrations have not been applied.
+
+[![Coverage](https://codecov.io/gh/ADAMDEV01/applyboard/branch/main/graph/badge.svg)](https://codecov.io/gh/ADAMDEV01/applyboard)
 
 ## Screenshots
 
