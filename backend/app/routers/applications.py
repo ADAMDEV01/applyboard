@@ -26,7 +26,7 @@ from app.schemas.application import (
 from app.services.applications import is_valid_status_transition
 
 router = APIRouter(prefix="/applications", tags=["applications"])
-DEMO_EMAIL = "demo@applyboard.local"
+DEMO_EMAIL = "demo@applyboard.dev"
 
 
 def ensure_writable_user(current_user: User) -> None:
