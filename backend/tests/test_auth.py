@@ -175,7 +175,7 @@ def test_demo_login_creates_seeded_read_only_workspace(client: TestClient) -> No
     applications = client.get("/applications", headers=headers)
 
     assert me.status_code == 200
-    assert me.json()["email"] == "demo@applyboard.local"
+    assert me.json()["email"] == "demo@applyboard.dev"
     assert applications.status_code == 200
     assert applications.json()["total"] == 5
 
