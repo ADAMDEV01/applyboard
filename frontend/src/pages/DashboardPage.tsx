@@ -189,8 +189,8 @@ export function DashboardPage() {
             </div>
             <ApplicationTable
               applications={applications}
-              onEdit={setEditing}
-              onDelete={(application) => {
+              onEdit={api.isDemo() ? undefined : setEditing}
+              onDelete={api.isDemo() ? undefined : (application) => {
                 if (window.confirm(`Delete the ${application.role} application at ${application.company}? This cannot be undone.`)) {
                   deleteMutation.mutate(application.id)
                 }
