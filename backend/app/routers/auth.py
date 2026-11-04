@@ -89,7 +89,7 @@ def read_current_user(current_user: CurrentUser) -> User:
     return current_user
 
 
-DEMO_EMAIL = "demo@applyboard.local"
+DEMO_EMAIL = "demo@applyboard.dev"
 
 
 @router.post("/demo", response_model=TokenRead)
