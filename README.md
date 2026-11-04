@@ -214,7 +214,7 @@ Set-Location .\backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend tests run against an isolated temporary SQLite database; CI also applies and checks migrations against PostgreSQL. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **30 test functions** across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
+Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend tests run against an isolated temporary SQLite database; CI also applies and checks migrations against PostgreSQL. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **39 test functions** across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
 
 Frontend checks (Vitest covers the API client, application form, and dashboard empty state):
 
@@ -268,7 +268,7 @@ Redeploy the backend after saving environment variables. Check `https://<backend
 
 ## Screenshots
 
-Use **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.dev`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.\n\nUse **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.dev`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.
+Use **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.dev`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.
 
 ### Dashboard
 
