@@ -16,13 +16,12 @@ describe('API client', () => {
 
   it('stores the access token after a successful login', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
-      access_token: 'access-token',
-      token_type: 'bearer',
+      authenticated: true,
     }))
 
     await api.login('person@example.com', 'safe-password-123')
 
-    expect(sessionStorage.getItem('job-tracker-access-token')).toBe('access-token')
+    expect(sessionStorage.getItem('applyboard-authenticated')).toBe('1')
     expect(api.isDemo()).toBe(false)
     expect(fetch).toHaveBeenCalledWith('/auth/login', expect.objectContaining({
       method: 'POST',
@@ -32,8 +31,7 @@ describe('API client', () => {
 
   it('marks a demo session and clears that marker on logout', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
-      access_token: 'demo-token',
-      token_type: 'bearer',
+      authenticated: true,
     }))
 
     await api.demoLogin()
@@ -48,7 +46,7 @@ describe('API client', () => {
   })
 
   it('attaches the bearer token to protected application requests', async () => {
-    sessionStorage.setItem('job-tracker-access-token', 'existing-token')
+    sessionStorage.setItem('applyboard-authenticated', '1')
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
       items: [],
       total: 0,
@@ -60,7 +58,8 @@ describe('API client', () => {
     await api.applications(new URLSearchParams({ page: '1' }))
 
     const [, init] = vi.mocked(fetch).mock.calls[0]
-    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer existing-token')
+    expect(init?.credentials).toBe('include')
+    expect(new Headers(init?.headers).has('Authorization')).toBe(false)
   })
 
   it('returns useful API validation errors', async () => {
