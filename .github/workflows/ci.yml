@@ -93,6 +93,7 @@ jobs:
         run: docker compose -f ../docker-compose.yml logs && docker compose -f ../docker-compose.yml down -v
 
   frontend:
+    needs: backend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -104,8 +105,21 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - run: npm run lint
+      - run: npm run test
       - run: npm run build
         env:
           VITE_API_BASE_URL: https://api.example.invalid
+      - name: Commit synchronized frontend lockfile
+        run: |
+          git -C .. config user.name "github-actions[bot]"
+          git -C .. config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git -C .. switch -C "$target_branch"
+          git -C .. add frontend/package-lock.json
+          if git -C .. diff --cached --quiet; then exit 0; fi
+          git -C .. commit -m "build: sync frontend test dependency lockfile [skip ci]"
+          git -C .. pull --rebase origin "$target_branch"
+          git -C .. push origin "HEAD:$target_branch"
