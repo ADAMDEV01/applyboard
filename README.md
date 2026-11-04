@@ -5,10 +5,12 @@ Applyboard is a full-stack job-application tracker built as a portfolio project.
 ## Features
 
 - Argon2 password hashing, bearer JWT access tokens, and private user-scoped routes.
+- One-click, read-only demo workspace with five seeded applications and event history.
 - Application create, read, update, and delete with search, platform/status filters, pagination, and sorting.
 - Explicit status-transition rules and a chronological event history.
 - Dashboard analytics for unique applications, response rates, response time, follow-ups, and possible ghosting.
-- Responsive React/TypeScript interface with status/platform charts, application search, and history.
+- Responsive React/TypeScript interface with status/platform charts, application search, history, and a Kanban board.
+- CSV import/export for application records.
 - Alembic-managed PostgreSQL schema; SQLite is the zero-setup local default.
 - Isolated backend tests with coverage enforcement, Docker Compose, and GitHub Actions.
 
@@ -86,6 +88,7 @@ OpenAPI/Swagger is available at `http://localhost:8000/docs` while the API is ru
 | `GET` | `/health` | Public | Liveness check |
 | `POST` | `/auth/register` | Public | Create account |
 | `POST` | `/auth/login` | Public | Return bearer access token |
+| `POST` | `/auth/demo` | Public, rate-limited | Open a read-only sample workspace |
 | `GET` | `/auth/me` | Bearer token | Read current user |
 | `GET` | `/applications` | Bearer token | Search/filter/sort/paginate owned applications |
 | `POST` | `/applications` | Bearer token | Create application |
@@ -241,4 +244,6 @@ Redeploy the backend after saving environment variables. Check `https://<backend
 
 ## Screenshots
 
-Use **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.local`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.\n\nScreenshots are not included yet. Capture the dashboard, applications list, and application history from the running demo workspace before adding them here; no placeholder or fabricated UI images are used.
+Use **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.local`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.\n\nUse **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.local`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.
+
+Screenshots are not included yet. Capture the dashboard, applications list, and application history from the running demo workspace before adding them here; no placeholder or fabricated UI images are used.
