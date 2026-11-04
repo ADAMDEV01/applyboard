@@ -204,12 +204,13 @@ Set-Location .\backend
 
 Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend tests run against an isolated temporary SQLite database; CI also applies and checks migrations against PostgreSQL. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **30 test functions** across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
 
-Frontend checks:
+Frontend checks (Vitest covers the API client, application form, and dashboard empty state):
 
 ```powershell
 Set-Location .\frontend
 npm ci
 npm run lint
+npm run test
 npm run build
 ```
 
