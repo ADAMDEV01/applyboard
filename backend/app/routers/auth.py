@@ -1,3 +1,5 @@
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -15,7 +17,13 @@ from app.core.security import (
 )
 from app.db.database import get_db
 from app.dependencies.auth import CurrentUser
-from app.models import User
+from app.models import (
+    Application,
+    ApplicationEvent,
+    ApplicationEventType,
+    ApplicationStatus,
+    User,
+)
 from app.schemas.auth import TokenRead, UserCreate, UserLogin, UserRead
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -79,3 +87,74 @@ def login(
 @router.get("/me", response_model=UserRead)
 def read_current_user(current_user: CurrentUser) -> User:
     return current_user
+
+
+DEMO_EMAIL = "demo@applyboard.local"
+
+
+@router.post("/demo", response_model=TokenRead)
+@limiter.limit("3/hour")
+def demo_login(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenRead:
+    """Create or reuse a read-only demo workspace with realistic sample applications."""
+    user = db.scalar(select(User).where(User.email == DEMO_EMAIL))
+    if user is None:
+        user = User(
+            email=DEMO_EMAIL,
+            password_hash=hash_password(secrets.token_urlsafe(48)),
+        )
+        db.add(user)
+        db.flush()
+
+        now = datetime.now(timezone.utc)
+        samples = [
+            ("Northstar Labs", "Junior Full-Stack Developer", "Company website", ApplicationStatus.INTERVIEW, 24, 2, "Technical interview scheduled"),
+            ("Orbit Systems", "Backend Engineer", "LinkedIn", ApplicationStatus.REPLIED, 18, 5, "Recruiter asked for availability"),
+            ("Cedar Technologies", "Frontend Developer", "Wellfound", ApplicationStatus.APPLIED, 9, 4, "Tailored CV submitted"),
+            ("Brightpath", "Software Engineer Intern", "Company website", ApplicationStatus.REJECTED, 32, None, "Received a polite rejection"),
+            ("Vertex Cloud", "Python Developer", "Indeed", ApplicationStatus.APPLIED, 4, 7, "Follow up with the hiring team"),
+        ]
+        for company, role, platform, app_status, days_ago, follow_up_days, note in samples:
+            applied_at = now - timedelta(days=days_ago)
+            application = Application(
+                user_id=user.id,
+                company=company,
+                role=role,
+                platform=platform,
+                status=app_status,
+                applied_at=applied_at,
+                follow_up_at=now + timedelta(days=follow_up_days) if follow_up_days else None,
+                notes=note,
+            )
+            application.events.append(
+                ApplicationEvent(
+                    previous_status=None,
+                    new_status=ApplicationStatus.APPLIED,
+                    event_type=ApplicationEventType.CREATED,
+                    created_at=applied_at,
+                    note="Demo application created",
+                )
+            )
+            if app_status != ApplicationStatus.APPLIED:
+                application.events.append(
+                    ApplicationEvent(
+                        previous_status=ApplicationStatus.APPLIED,
+                        new_status=app_status,
+                        event_type=ApplicationEventType.STATUS_CHANGED,
+                        created_at=applied_at + timedelta(days=max(1, days_ago // 2)),
+                        note="Demo status update",
+                    )
+                )
+            db.add(application)
+        db.commit()
+
+    try:
+        token = create_access_token(str(user.id))
+    except JWTConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured on this server.",
+        ) from exc
+    return TokenRead(access_token=token)
