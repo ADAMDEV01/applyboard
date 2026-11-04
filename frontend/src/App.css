@@ -197,3 +197,21 @@ textarea { resize: vertical; }
   .detail-grid { grid-template-columns: 1fr; }
   .notes-field { grid-column: auto; }
 }
+
+.applications-actions, .view-switch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.view-switch { justify-content: flex-end; padding-bottom: 16px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.kanban-board { display: grid; grid-template-columns: repeat(6, minmax(190px, 1fr)); gap: 12px; overflow-x: auto; padding: 4px 0 18px; }
+.kanban-column { min-height: 210px; padding: 12px; border: 1px solid #e9ecf3; border-radius: 12px; background: #f8f9fc; }
+.kanban-column-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; text-transform: capitalize; }
+.kanban-column-heading h3 { margin: 0; color: #59647a; font-size: 12px; }
+.kanban-column-heading span { display: grid; place-items: center; min-width: 23px; height: 23px; border-radius: 8px; background: #e9edf8; color: #5268d8; font-size: 11px; font-weight: 700; }
+.kanban-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; margin-bottom: 9px; border: 1px solid #e9ecf3; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px #26314a08; }
+.kanban-company { color: #2e3950; font-size: 12px; font-weight: 700; text-decoration: none; }
+.kanban-card p { margin: 0; color: #68738a; font-size: 11px; line-height: 1.5; }
+.kanban-card > span { color: #929bad; font-size: 10px; }
+.kanban-card .text-button { align-self: flex-start; margin-top: 4px; }
+.kanban-empty { color: #a0a7b4; font-size: 11px; }
+.demo-button { margin-top: 12px; }
+@media (max-width: 900px) { .applications-actions { justify-content: flex-start; } .kanban-board { grid-template-columns: repeat(6, 190px); } }
+@media (max-width: 680px) { .page-heading { align-items: flex-start; flex-direction: column; } .applications-actions { width: 100%; } .applications-actions .button { flex: 1; } }
