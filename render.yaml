@@ -37,7 +37,7 @@ services:
         fromService:
           type: web
           name: applyboard-api
-          property: host
+          property: url
     routes:
       - type: rewrite
         source: /*
