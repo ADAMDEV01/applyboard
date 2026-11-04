@@ -146,7 +146,7 @@ $env:JWT_SECRET = & .\.venv\Scripts\python.exe -c "import secrets; print(secrets
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-The default database is `sqlite:///./job_tracker.db` relative to `backend`. For PostgreSQL, set `DATABASE_URL` to a URL using the `postgresql+psycopg://` driver. CORS is restricted to the comma-separated origins in `CORS_ALLOWED_ORIGINS` (defaults to `http://localhost:5173`).
+The default database is `sqlite:///./job_tracker.db` relative to `backend`. For PostgreSQL, set `DATABASE_URL` to a URL using the `postgresql+psycopg://` driver. CORS is restricted to the comma-separated origins in `CORS_ALLOWED_ORIGINS` (defaults to `http://localhost:5173,http://localhost:3000`).
 
 ### Frontend
 
@@ -257,4 +257,14 @@ Redeploy the backend after saving environment variables. Check `https://<backend
 
 Use **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.dev`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.\n\nUse **Try the demo workspace** on the login page to open a seeded, read-only account (`demo@applyboard.dev`). It includes sample application statuses, follow-up dates, and event history; create a personal account to add or change records.
 
-Screenshots are not included yet. Capture the dashboard, applications list, and application history from the running demo workspace before adding them here; no placeholder or fabricated UI images are used.
+### Dashboard
+
+![Applyboard dashboard](frontend/screenshots/dashboard.png)
+
+### Applications
+
+![Applications list](frontend/screenshots/applications.png)
+
+### Application history
+
+![Application history](frontend/screenshots/application-history.png)
