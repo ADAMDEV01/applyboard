@@ -40,6 +40,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (response.status === 401 && token) {
     sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(DEMO_KEY)
     window.dispatchEvent(new Event('auth:expired'))
   }
   if (!response.ok) {
