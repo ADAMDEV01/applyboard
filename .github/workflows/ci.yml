@@ -67,6 +67,10 @@ jobs:
         if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           cd ../frontend
+          if [ -f screenshots/dashboard.png ] && [ -f screenshots/applications.png ] && [ -f screenshots/application-history.png ]; then
+            echo "Demo screenshots are already committed."
+            exit 0
+          fi
           npm install --no-save playwright
           npx playwright install --with-deps chromium
           mkdir -p screenshots
@@ -91,7 +95,7 @@ jobs:
           target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           git -C .. switch -C "$target_branch"
           git -C .. add frontend/screenshots frontend/package-lock.json
-          git -C .. commit -m "docs: add demo screenshots and sync frontend lockfile [skip ci]"
+          git -C .. commit -m "docs: add demo screenshots and sync frontend lockfile "
           git -C .. pull --rebase origin "$target_branch"
           git -C .. push origin "HEAD:$target_branch"
       - name: Stop Docker Compose
