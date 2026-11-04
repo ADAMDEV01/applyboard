@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -65,15 +66,16 @@ def _response_rows(
         .group_by(ApplicationEvent.application_id)
         .subquery()
     )
-    return list(
-        db.execute(
+    return cast(
+        list[tuple[Application, datetime | None]],
+        list(db.execute(
             select(Application, first_response.c.first_response_at)
             .outerjoin(
                 first_response,
                 first_response.c.application_id == Application.id,
             )
             .where(Application.user_id == user_id)
-        ).all()
+        ).all()),
     )
 
 
