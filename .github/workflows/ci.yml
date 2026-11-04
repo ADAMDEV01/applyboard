@@ -59,6 +59,7 @@ jobs:
       - name: Run isolated backend tests
         run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
       - name: Capture real demo screenshots
+        if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           cd ../frontend
           npm install --no-save playwright
@@ -84,7 +85,9 @@ jobs:
           git -C .. config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C .. add frontend/screenshots
           git -C .. commit -m "docs: add real demo screenshots [skip ci]"
-          git -C .. push
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git -C .. pull --rebase origin "$target_branch"
+          git -C .. push origin "HEAD:$target_branch"
       - name: Stop Docker Compose
         if: always()
         run: docker compose -f ../docker-compose.yml logs && docker compose -f ../docker-compose.yml down -v
