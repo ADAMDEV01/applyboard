@@ -25,6 +25,8 @@ services:
           property: url
       - key: RATE_LIMIT_STORAGE_URI
         value: memory://
+      - key: COOKIE_SECURE
+        value: "true"
 
   - type: web
     name: applyboard-frontend
