@@ -63,6 +63,11 @@ jobs:
           curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:3000/
       - name: Run isolated backend tests
         run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
+      - name: Publish backend coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
       - name: Capture real demo screenshots
         if: github.event_name == 'push' && github.ref != 'refs/heads/main'
         run: |
