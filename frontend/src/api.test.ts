@@ -14,7 +14,7 @@ describe('API client', () => {
     vi.stubGlobal('fetch', vi.fn())
   })
 
-  it('stores the access token after a successful login', async () => {
+  it('marks the browser session after a successful cookie login', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
       authenticated: true,
     }))
@@ -45,7 +45,7 @@ describe('API client', () => {
     expect(api.isDemo()).toBe(false)
   })
 
-  it('attaches the bearer token to protected application requests', async () => {
+  it('sends credentials with protected application requests', async () => {
     sessionStorage.setItem('applyboard-authenticated', '1')
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
       items: [],
