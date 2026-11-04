@@ -158,7 +158,7 @@ export function ApplicationsPage() {
           <button className="button button-quiet" onClick={() => fileInput.current?.click()} type="button">Import CSV</button>
           <input ref={fileInput} accept=".csv,text/csv" className="visually-hidden" onChange={(event) => void importCsv(event.target.files?.[0])} type="file" />
           <button className="button button-quiet" disabled={!applications.length} onClick={exportCsv} type="button">Export CSV</button>
-          <button className="button button-primary" onClick={() => setEditing('new')} type="button">＋ Add application</button>
+          {!api.isDemo() && <button className="button button-primary" onClick={() => setEditing('new')} type="button">＋ Add application</button>}
         </div>
       </section>
       {importMessage && <p className="muted" role="status">{importMessage}</p>}
@@ -177,12 +177,12 @@ export function ApplicationsPage() {
         {query.error && <div className="error-banner" role="alert">{query.error.message}</div>}
         {deleteMutation.error && <div className="error-banner" role="alert">{deleteMutation.error.message}</div>}
         {query.isLoading ? <div className="loading-line">Loading applications…</div> : view === 'board' ? (
-          <ApplicationBoard applications={applications} onEdit={setEditing} />
+          <ApplicationBoard applications={applications} onEdit={api.isDemo() ? undefined : setEditing} />
         ) : (
           <ApplicationTable
             applications={applications}
-            onEdit={setEditing}
-            onDelete={(application) => {
+            onEdit={api.isDemo() ? undefined : setEditing}
+            onDelete={api.isDemo() ? undefined : (application) => {
               if (window.confirm(`Delete the ${application.role} application at ${application.company}? This cannot be undone.`)) {
                 deleteMutation.mutate(application.id)
               }
