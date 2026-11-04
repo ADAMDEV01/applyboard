@@ -51,6 +51,8 @@ jobs:
         run: python -m alembic upgrade head
       - name: Verify model and migration parity
         run: python -m alembic check
+      - name: Resolve frontend lockfile for Docker build
+        run: cd ../frontend && npm install --package-lock-only --ignore-scripts
       - name: Build and smoke-test Docker Compose
         run: |
           docker compose -f ../docker-compose.yml up --build -d --wait
@@ -83,8 +85,8 @@ jobs:
           NODE
           git -C .. config user.name "github-actions[bot]"
           git -C .. config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C .. add frontend/screenshots
-          git -C .. commit -m "docs: add real demo screenshots [skip ci]"
+          git -C .. add frontend/screenshots frontend/package-lock.json
+          git -C .. commit -m "docs: add demo screenshots and sync frontend lockfile [skip ci]"
           target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           git -C .. pull --rebase origin "$target_branch"
           git -C .. push origin "HEAD:$target_branch"
@@ -100,6 +102,11 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - name: Check out latest PR branch state
+        run: |
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git -C .. fetch origin "$target_branch"
+          git -C .. reset --hard FETCH_HEAD
       - uses: actions/setup-node@v4
         with:
           node-version: 24
