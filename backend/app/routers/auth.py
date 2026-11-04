@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.limiter import limiter
 from app.core.security import (
     DUMMY_PASSWORD_HASH,
     JWTConfigurationError,
@@ -25,7 +26,9 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("5/minute")
 def register(
+    request: Request,
     payload: UserCreate,
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
@@ -48,7 +51,9 @@ def register(
 
 
 @router.post("/login", response_model=TokenRead)
+@limiter.limit("10/minute")
 def login(
+    request: Request,
     payload: UserLogin,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenRead:
