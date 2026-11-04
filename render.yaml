@@ -51,7 +51,7 @@ services:
     schedule: "0 0 * * *"
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: python -m app.jobs.send_followup_reminders
+    dockerCommand: sh -c 'alembic upgrade head && python -m app.jobs.send_followup_reminders'
     envVars:
       - key: DATABASE_URL
         fromDatabase:
