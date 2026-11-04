@@ -25,6 +25,15 @@ from app.schemas.application import (
 from app.services.applications import is_valid_status_transition
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+DEMO_EMAIL = "demo@applyboard.local"
+
+
+def ensure_writable_user(current_user: User) -> None:
+    if current_user.email == DEMO_EMAIL:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The demo workspace is read-only. Create an account to manage applications.",
+        )
 
 
 def get_owned_application(
@@ -109,6 +118,7 @@ def create_application(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Application:
+    ensure_writable_user(current_user)
     application_data = payload.model_dump()
     if payload.url is not None:
         application_data["url"] = str(payload.url)
@@ -145,6 +155,7 @@ def update_application(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Application:
+    ensure_writable_user(current_user)
     application = get_owned_application(application_id, current_user.id, db)
     update_data = payload.model_dump(exclude_unset=True)
 
@@ -199,6 +210,7 @@ def delete_application(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
+    ensure_writable_user(current_user)
     application = get_owned_application(application_id, current_user.id, db)
     db.delete(application)
     db.commit()
