@@ -35,6 +35,7 @@ Backend code separates configuration/security, SQLAlchemy models, Pydantic schem
 ```mermaid
 erDiagram
     USERS ||--o{ APPLICATIONS : owns
+    USERS ||--o{ REFRESH_SESSIONS : authenticates
     APPLICATIONS ||--o{ APPLICATION_EVENTS : records
     USERS {
         int id PK
@@ -56,6 +57,14 @@ erDiagram
         text notes
         datetime created_at
     }
+    REFRESH_SESSIONS {
+        int id PK
+        int user_id FK
+        string token_hash UK
+        datetime expires_at
+        datetime revoked_at
+        datetime created_at
+    }
     APPLICATION_EVENTS {
         int id PK
         int application_id FK
@@ -67,7 +76,7 @@ erDiagram
     }
 ```
 
-Email is unique. Application ownership is enforced by filtering queries through the authenticated user. Foreign keys cascade deletes from user to applications and application to events. Statuses are constrained to `applied`, `replied`, `interview`, `offer`, `rejected`, and `ghosted`.
+Email is unique. Application ownership is enforced by filtering queries through the authenticated user. Refresh tokens are stored as hashes in `refresh_sessions`, and each refresh token is single-use. Foreign keys cascade deletes from user to applications and refresh sessions, and from application to events. Statuses are constrained to `applied`, `replied`, `interview`, `offer`, `rejected`, and `ghosted`.
 
 ## Analytics definitions and business rules
 
