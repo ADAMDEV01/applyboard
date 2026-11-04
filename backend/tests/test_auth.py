@@ -249,3 +249,25 @@ def test_logout_revokes_refresh_session(client: TestClient) -> None:
 
     assert logout.status_code == 204
     assert refresh.status_code == 401
+
+
+def test_cookie_authenticated_write_succeeds_for_trusted_origin(client: TestClient) -> None:
+    register_user(client)
+    client.post(
+        "/auth/login",
+        json={"email": "person@example.com", "password": "safe-password-123"},
+    )
+    payload = {
+        "company": "Acme",
+        "role": "Engineer",
+        "platform": "Company website",
+    }
+
+    response = client.post(
+        "/applications",
+        json=payload,
+        headers={"Origin": "http://localhost:5173"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["company"] == "Acme"
