@@ -51,6 +51,9 @@ jobs:
         run: python -m alembic upgrade head
       - name: Verify model and migration parity
         run: python -m alembic check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Resolve frontend lockfile for Docker build
         run: cd ../frontend && npm install --package-lock-only --ignore-scripts
       - name: Build and smoke-test Docker Compose
