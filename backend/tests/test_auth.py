@@ -167,7 +167,7 @@ def test_login_is_rate_limited(
 def test_demo_login_creates_seeded_read_only_workspace(client: TestClient) -> None:
     response = client.post("/auth/demo")
     assert response.status_code == 200
-    assert response.json() == {"authenticated": true}
+    assert response.json() == {"authenticated": True}
 
     me = client.get("/auth/me")
     applications = client.get("/applications")
