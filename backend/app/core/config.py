@@ -21,3 +21,5 @@ CORS_ALLOWED_ORIGINS = [
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
     if origin.strip()
 ]
+
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
