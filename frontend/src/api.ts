@@ -14,6 +14,30 @@ const API_BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_BASE_
 const AUTH_KEY = 'applyboard-authenticated'
 const DEMO_KEY = 'applyboard-demo-session'
 
+// Share one refresh request across concurrent API calls. Dashboard queries can all
+// receive 401 together; rotating the same refresh cookie in parallel makes all but
+// one request fail and can overwrite the newly issued cookie with a deletion.
+let refreshPromise: Promise<boolean> | null = null
+
+async function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        return response.ok
+      } catch {
+        return false
+      } finally {
+        refreshPromise = null
+      }
+    })()
+  }
+  return refreshPromise
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -49,19 +73,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     '/auth/logout',
   ]
   if (response.status === 401 && !publicAuthPaths.includes(path)) {
-    try {
-      const refreshed = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      if (refreshed.ok) {
-        response = await fetch(`${API_BASE_URL}${path}`, requestInit)
-      } else {
-        sessionStorage.removeItem(AUTH_KEY)
-        sessionStorage.removeItem(DEMO_KEY)
-        window.dispatchEvent(new Event('auth:expired'))
-      }
-    } catch {
+    const refreshed = await refreshSession()
+    if (refreshed) {
+      response = await fetch(`${API_BASE_URL}${path}`, requestInit)
+    } else {
       sessionStorage.removeItem(AUTH_KEY)
       sessionStorage.removeItem(DEMO_KEY)
       window.dispatchEvent(new Event('auth:expired'))
