@@ -175,7 +175,7 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 
 | Variable | Required | Description |
 |---|---:|---|
-| `DATABASE_URL` | No for SQLite | SQLAlchemy database URL; defaults to local SQLite |
+| `APP_ENV` | No | Set to `production` to enforce production-only security configuration |\n| `DATABASE_URL` | No for SQLite | SQLAlchemy database URL; defaults to local SQLite |
 | `JWT_SECRET` | Yes for login/token use | Random secret of at least 32 bytes |
 | `VITE_API_BASE_URL` | Yes | API origin embedded into the frontend build |
 | `CORS_ALLOWED_ORIGINS` | No | Comma-separated trusted frontend origins; defaults to `http://localhost:5173` |
@@ -240,7 +240,7 @@ The Compose stack starts PostgreSQL with a named persistent volume, waits for th
 
 ## Deployment (Render)
 
-The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and daily follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide the SMTP host, username, password, and verified sender address for the cron service. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
+The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and daily follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide a shared Redis URL for `RATE_LIMIT_STORAGE_URI` and the SMTP host, username, password, and verified sender address for the cron service. The API will fail closed if production is configured with insecure cookies or process-local rate-limit storage. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
 
 ## Deployment (manual Render example)
 
