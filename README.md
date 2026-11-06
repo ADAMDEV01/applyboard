@@ -214,7 +214,7 @@ Set-Location .\backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend unit/API tests run against an isolated temporary SQLite database. CI additionally runs dedicated integration tests against its PostgreSQL service after migrations, covering real foreign keys, check/unique constraints, transaction rollback, and concurrent single-use refresh-token consumption. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **47 test functions**, including four PostgreSQL-only integration tests across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
+Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend unit/API tests run against an isolated temporary SQLite database. CI additionally runs dedicated integration tests against its PostgreSQL service after migrations, covering real foreign keys, check/unique constraints, transaction rollback, and concurrent single-use refresh-token consumption. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **48 test functions**, including four PostgreSQL-only integration tests across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
 
 Frontend checks (Vitest covers the API client, application form, and dashboard empty state):
 
