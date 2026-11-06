@@ -1,0 +1,55 @@
+name: Capture demo screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: screenshot-only-db-password
+      JWT_SECRET: screenshot-only-secret-at-least-32-characters
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      COOKIE_SECURE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up --build -d --wait
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm install --no-save --package-lock=false playwright && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Capture screenshots without changing repository files
+        working-directory: frontend
+        run: |
+          mkdir -p /tmp/applyboard-screenshots
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+          await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+          await page.getByRole('button', { name: 'Try the demo workspace' }).click();
+          await page.getByRole('heading', { name: 'Good progress starts with a clear view.' }).waitFor();
+          await page.screenshot({ path: '/tmp/applyboard-screenshots/dashboard.png', fullPage: true });
+          await page.goto('http://localhost:3000/applications', { waitUntil: 'networkidle' });
+          await page.locator('.company-link').first().waitFor();
+          await page.screenshot({ path: '/tmp/applyboard-screenshots/applications.png', fullPage: true });
+          await page.getByRole('link', { name: 'Northstar Labs' }).click();
+          await page.getByRole('heading', { name: 'Activity history' }).waitFor();
+          await page.screenshot({ path: '/tmp/applyboard-screenshots/application-history.png', fullPage: true });
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: applyboard-demo-screenshots
+          path: /tmp/applyboard-screenshots/*.png
+          if-no-files-found: error
+      - if: always()
+        run: docker compose logs && docker compose down -v

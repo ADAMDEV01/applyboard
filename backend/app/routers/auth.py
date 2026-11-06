@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -165,9 +165,10 @@ def refresh_session(
         )
 
     now = datetime.now(timezone.utc)
+    token_hash = _hash_refresh_token(token)
     session = db.scalar(
         select(RefreshSession).where(
-            RefreshSession.token_hash == _hash_refresh_token(token),
+            RefreshSession.token_hash == token_hash,
             RefreshSession.revoked_at.is_(None),
             RefreshSession.expires_at > now,
         )
@@ -186,7 +187,27 @@ def refresh_session(
             detail="Refresh session is no longer valid.",
         )
 
-    session.revoked_at = now
+    # PostgreSQL rechecks this predicate after waiting on a concurrent row lock.
+    # Therefore only one request can consume a given refresh session.
+    consumed = db.execute(
+        update(RefreshSession)
+        .where(
+            RefreshSession.id == session.id,
+            RefreshSession.token_hash == token_hash,
+            RefreshSession.revoked_at.is_(None),
+            RefreshSession.expires_at > now,
+        )
+        .values(revoked_at=now)
+    )
+    if getattr(consumed, "rowcount", 0) != 1:
+        db.rollback()
+        _clear_session_cookies(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh session has already been used.",
+        )
+
+    # The replacement session is committed together with revocation.
     return _issue_session(response, db, user)
 
 

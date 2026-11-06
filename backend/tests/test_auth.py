@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core import security
+from app.routers import auth as auth_router
 
 
 def register_user(
@@ -271,3 +272,52 @@ def test_cookie_authenticated_write_succeeds_for_trusted_origin(client: TestClie
 
     assert response.status_code == 201
     assert response.json()["company"] == "Acme"
+
+
+
+def test_refresh_cookie_has_secure_attribute_when_production_enabled(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth_router, "COOKIE_SECURE", True)
+    register_user(client)
+    response = client.post(
+        "/auth/login",
+        json={"email": "person@example.com", "password": "safe-password-123"},
+    )
+
+    cookies = response.headers.get_list("set-cookie")
+    assert response.status_code == 200
+    assert any("applyboard_access=" in cookie and "Secure" in cookie for cookie in cookies)
+    assert any("applyboard_refresh=" in cookie and "Secure" in cookie for cookie in cookies)
+
+
+def test_registration_is_rate_limited(client: TestClient) -> None:
+    payload = {"email": "limited@example.com", "password": "safe-password-123"}
+    responses = [
+        client.post("/auth/register", json=payload)
+        for _ in range(6)
+    ]
+
+    assert responses[0].status_code == 201
+    assert all(response.status_code == 409 for response in responses[1:5])
+    assert responses[5].status_code == 429
+
+
+def test_cors_preflight_only_advertises_supported_methods_and_headers(
+    client: TestClient,
+) -> None:
+    response = client.options(
+        "/applications",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "PATCH" in response.headers["access-control-allow-methods"]
+    assert "*" not in response.headers["access-control-allow-methods"]
+    assert "authorization" in response.headers["access-control-allow-headers"].lower()
+    assert "*" not in response.headers["access-control-allow-headers"]
