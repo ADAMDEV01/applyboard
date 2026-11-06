@@ -254,7 +254,7 @@ The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `Secu
 
 ## Vercel backend deployment
 
-Set `DATABASE_URL` to an external PostgreSQL connection string using the `postgresql+psycopg://` driver, and set `JWT_SECRET` to a random value of at least 32 bytes in the backend project's Vercel Environment Variables for each deployed environment. Keep both values private. Vercel's Python function deployment does not run the Dockerfile command that applies migrations, so run migrations separately against that same database after setting the environment variables locally:
+Set `APP_ENV=production`, `COOKIE_SECURE=true`, and `RATE_LIMIT_STORAGE_URI` to a shared Redis URL in the backend project's Vercel Environment Variables. Set `DATABASE_URL` to an external PostgreSQL connection string using the `postgresql+psycopg://` driver, and set `JWT_SECRET` to a random value of at least 32 bytes for each deployed environment. The API intentionally refuses to start in production if cookies are insecure or rate limits use per-process `memory://` storage. Keep both values private. Vercel's Python function deployment does not run the Dockerfile command that applies migrations, so run migrations separately against that same database after setting the environment variables locally:
 
 ```powershell
 Set-Location .\backend
