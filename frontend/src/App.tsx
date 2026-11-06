@@ -37,9 +37,9 @@ const queryClient = new QueryClient({
 function ProtectedLayout() {
   const navigate = useNavigate()
   const client = useQueryClient()
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
-    api.hasToken() ? true : null,
-  )
+  // Always validate the server-side session on entry. The sessionStorage flag
+  // is only a UI hint and must never bypass HttpOnly-cookie authentication.
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (isAuthenticated === null) {
