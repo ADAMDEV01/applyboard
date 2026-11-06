@@ -60,7 +60,7 @@ def test_postgres_foreign_keys_and_status_check_constraints(
             INSERT INTO applications
                 (user_id, company, role, platform, status, applied_at, last_update_at, created_at)
             VALUES
-                (:user_id, 'Bad status', 'Engineer', 'Test', 'not-a-status', NOW(), NOW(), NOW())
+                (:user_id, 'Bad status', 'Engineer', 'Test', 'invalid', NOW(), NOW(), NOW())
             """
         )
         with pytest.raises(IntegrityError):
