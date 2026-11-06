@@ -8,7 +8,9 @@ import type {
   ResponseMetrics,
 } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+// Production requests stay same-origin so HttpOnly auth cookies work reliably.
+// Vercel rewrites proxy API paths to the backend; local development can still use VITE_API_BASE_URL.
+const API_BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_BASE_URL ?? '')
 const AUTH_KEY = 'applyboard-authenticated'
 const DEMO_KEY = 'applyboard-demo-session'
 
