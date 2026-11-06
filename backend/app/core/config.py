@@ -22,7 +22,13 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+APP_ENV = os.getenv("APP_ENV", "development").lower()
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+RATE_LIMIT_STORAGE_URI = os.getenv("RATE_LIMIT_STORAGE_URI", "memory://").strip()
 
-if os.getenv("APP_ENV", "development").lower() == "production" and not COOKIE_SECURE:
+if APP_ENV == "production" and not COOKIE_SECURE:
     raise RuntimeError("COOKIE_SECURE=true is required when APP_ENV=production.")
+if APP_ENV == "production" and RATE_LIMIT_STORAGE_URI.startswith("memory://"):
+    raise RuntimeError(
+        "A shared Redis RATE_LIMIT_STORAGE_URI is required in production."
+    )
