@@ -5,12 +5,12 @@
       "destination": "https://applyboard-wk1y.vercel.app/auth/:path*"
     },
     {
-      "source": "/applications/:path*",
-      "destination": "https://applyboard-wk1y.vercel.app/applications/:path*"
-    },
-    {
       "source": "/applications",
       "destination": "https://applyboard-wk1y.vercel.app/applications"
+    },
+    {
+      "source": "/applications/:path*",
+      "destination": "https://applyboard-wk1y.vercel.app/applications/:path*"
     },
     {
       "source": "/stats/:path*",
