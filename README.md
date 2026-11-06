@@ -182,7 +182,7 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `POSTGRES_USER` | Docker Compose | Local PostgreSQL username |
 | `POSTGRES_PASSWORD` | Docker Compose | Local PostgreSQL password; use URL-safe characters |
 | `POSTGRES_DB` | Docker Compose | Local PostgreSQL database name |
-| `RATE_LIMIT_STORAGE_URI` | No | SlowAPI storage URL; use Redis for shared production limits |
+| `RATE_LIMIT_STORAGE_URI` | Required for multi-worker production | SlowAPI storage URL; configure a shared Redis URL for multiple workers/instances. `memory://` is for local or single-process test use only. |
 | `COOKIE_SECURE` | No | Set `true` behind HTTPS; defaults to `false` for local development |
 | `SMTP_HOST` | For email reminders | SMTP server hostname |
 | `SMTP_PORT` | No | SMTP port; defaults to `587` |
@@ -192,7 +192,7 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `SMTP_TIMEOUT_SECONDS` | No | SMTP connection timeout; defaults to `20` |
 
 
-For production, set `CORS_ALLOWED_ORIGINS` to the exact comma-separated frontend origins and configure `RATE_LIMIT_STORAGE_URI` to a shared Redis instance when running multiple API workers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
+For production, set `APP_ENV=production` and `COOKIE_SECURE=true`. Set `CORS_ALLOWED_ORIGINS` to exact frontend origins. Configure `RATE_LIMIT_STORAGE_URI` to a shared Redis instance whenever multiple API workers or instances are used; the Render Blueprint requires this value instead of silently defaulting to per-process memory storage. CORS permits only GET, POST, PATCH, DELETE, and OPTIONS, plus Authorization, Content-Type, and X-Requested-With headers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
 
 ## Migrations
 
@@ -214,7 +214,7 @@ Set-Location .\backend
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend tests run against an isolated temporary SQLite database; CI also applies and checks migrations against PostgreSQL. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **39 test functions** across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
+Coverage is measured by `pytest-cov` and enforced at 80% by `pytest.ini`. Backend unit/API tests run against an isolated temporary SQLite database. CI additionally runs dedicated integration tests against its PostgreSQL service after migrations, covering real foreign keys, check/unique constraints, transaction rollback, and concurrent single-use refresh-token consumption. The suite covers authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints. The suite currently contains **39 test functions** across authentication, CRUD, validation, ownership, pagination, metrics, follow-up/ghosting rules, event history, CORS, and database constraints.
 
 Frontend checks (Vitest covers the API client, application form, and dashboard empty state):
 
@@ -250,7 +250,7 @@ The repository includes a `render.yaml` Blueprint for the PostgreSQL database, D
 4. After connection testing, restrict backend CORS to the exact deployed frontend origin and redeploy.
 5. Use HTTPS for both services, enable provider backups for PostgreSQL, and use the platform secret manager for all credentials. Never use local Compose credentials in production.
 
-The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `SameSite=Lax` cookies. Refresh tokens are stored only as SHA-256 hashes, rotated on refresh, and revoked on logout. Cookie-authenticated write requests require an allowed `Origin`; set `COOKIE_SECURE=true` behind HTTPS (the Render Blueprint does this). Bearer authentication remains accepted for existing API clients. The browser client does not read or store either token.
+The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `Secure` (production), `SameSite=Lax` cookies. Refresh-token consumption uses an atomic conditional database update, so only one concurrent request can consume a token and replay of the old token is rejected. Refresh tokens are stored only as SHA-256 hashes, rotated on refresh, and revoked on logout. Cookie-authenticated write requests require an allowed `Origin`; set `COOKIE_SECURE=true` behind HTTPS (the Render Blueprint does this). Bearer authentication remains accepted for existing API clients. The browser client does not read or store either token.
 
 ## Vercel backend deployment
 
