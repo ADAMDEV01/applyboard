@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   backend:
@@ -30,11 +30,9 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://applyboard:applyboard_ci_password@localhost:5432/applyboard_ci
       JWT_SECRET: ci-only-secret-value-at-least-32-characters
-      POSTGRES_USER: applyboard
-      POSTGRES_PASSWORD: applyboard-ci-password
-      POSTGRES_DB: applyboard
       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
       RATE_LIMIT_STORAGE_URI: memory://
+      COOKIE_SECURE: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,95 +49,39 @@ jobs:
         run: python -m alembic upgrade head
       - name: Verify model and migration parity
         run: python -m alembic check
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: Resolve frontend lockfile for Docker build
-        run: cd ../frontend && npm install --package-lock-only --ignore-scripts
-      - name: Build and smoke-test Docker Compose
-        run: |
-          docker compose -f ../docker-compose.yml up --build -d --wait
-          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/health/ready
-          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:3000/
-      - name: Run isolated backend tests
+      - name: Run PostgreSQL integration tests
+        run: python -m pytest -q tests/test_postgres_integration.py --no-cov
+      - name: Run isolated SQLite unit and API tests
         run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
       - name: Publish backend coverage
         uses: codecov/codecov-action@v5
         with:
           files: backend/coverage.xml
           fail_ci_if_error: false
-      - name: Capture real demo screenshots
-        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+      - name: Build and smoke-test Docker Compose
         run: |
-          cd ../frontend
-          if [ -f screenshots/dashboard.png ] && [ -f screenshots/applications.png ] && [ -f screenshots/application-history.png ]; then
-            echo "Demo screenshots are already committed."
-            exit 0
-          fi
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
-          mkdir -p screenshots
-          node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
-          const browser = await chromium.launch({ headless: true });
-          const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
-          await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
-          await page.getByRole('button', { name: 'Try the demo workspace' }).click();
-          await page.getByRole('heading', { name: 'Good progress starts with a clear view.' }).waitFor();
-          await page.screenshot({ path: 'screenshots/dashboard.png', fullPage: true });
-          await page.goto('http://localhost:3000/applications', { waitUntil: 'networkidle' });
-          await page.locator('.company-link').first().waitFor();
-          await page.screenshot({ path: 'screenshots/applications.png', fullPage: true });
-          await page.getByRole('link', { name: 'Northstar Labs' }).click();
-          await page.getByRole('heading', { name: 'Activity history' }).waitFor();
-          await page.screenshot({ path: 'screenshots/application-history.png', fullPage: true });
-          await browser.close();
-          NODE
-          git -C .. config user.name "github-actions[bot]"
-          git -C .. config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          git -C .. switch -C "$target_branch"
-          git -C .. add frontend/screenshots frontend/package-lock.json
-          git -C .. commit -m "docs: add demo screenshots and sync frontend lockfile "
-          git -C .. pull --rebase origin "$target_branch"
-          git -C .. push origin "HEAD:$target_branch"
+          docker compose -f ../docker-compose.yml up --build -d --wait
+          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/health/ready
+          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://localhost:3000/
       - name: Stop Docker Compose
         if: always()
         run: docker compose -f ../docker-compose.yml logs && docker compose -f ../docker-compose.yml down -v
 
   frontend:
-    needs: backend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - name: Check out latest PR branch state
-        run: |
-          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          git -C .. fetch origin "$target_branch"
-          git -C .. reset --hard FETCH_HEAD
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - run: npm run lint
       - run: npm run test
       - run: npm run build
         env:
           VITE_API_BASE_URL: https://api.example.invalid
-      - name: Commit synchronized frontend lockfile
-        run: |
-          git -C .. config user.name "github-actions[bot]"
-          git -C .. config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          git -C .. switch -C "$target_branch"
-          git -C .. add frontend/package-lock.json
-          if git -C .. diff --cached --quiet; then exit 0; fi
-          git -C .. commit -m "build: sync frontend test dependency lockfile"
-          git -C .. pull --rebase origin "$target_branch"
-          git -C .. push origin "HEAD:$target_branch"
