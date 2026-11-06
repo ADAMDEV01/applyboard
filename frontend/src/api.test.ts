@@ -83,6 +83,37 @@ describe('API client', () => {
     expect(requestCounts.get('/stats/platforms')).toBe(2)
   })
 
+  it('reports the refresh failure details when a protected request cannot refresh', async () => {
+    sessionStorage.setItem('applyboard-authenticated', '1')
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ detail: 'Invalid or missing authentication credentials.' }, 401))
+      .mockResolvedValueOnce(jsonResponse({ detail: 'Refresh session is missing or expired.' }, 401))
+
+    await expect(api.applications(new URLSearchParams({ page_size: '5' })))
+      .rejects.toMatchObject({
+        name: 'ApiError',
+        status: 401,
+        message: '/applications?page_size=5 — Invalid or missing authentication credentials. (session refresh failed: HTTP 401 — Refresh session is missing or expired.)',
+      })
+
+    expect(sessionStorage.getItem('applyboard-authenticated')).toBeNull()
+    expect(fetch).toHaveBeenNthCalledWith(2, '/auth/refresh', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+    }))
+  })
+
+  it('reports a network failure while refreshing a protected request', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ detail: 'Unauthorized.' }, 401))
+      .mockRejectedValueOnce(new Error('Network unavailable'))
+
+    await expect(api.summary()).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+      message: '/stats/summary — Unauthorized. (session refresh failed: Network error while refreshing the session.)',
+    })
+  })
   it('returns useful API validation errors', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
       detail: 'Company cannot be blank.',
