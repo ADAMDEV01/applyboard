@@ -126,7 +126,7 @@ describe('API client', () => {
     })).rejects.toMatchObject({
       name: 'ApiError',
       status: 422,
-      message: 'Company cannot be blank.',
+      message: '/applications — Company cannot be blank.',
     })
   })
 })
