@@ -64,7 +64,7 @@ def test_postgres_foreign_keys_and_status_check_constraints(
             """
         )
         with pytest.raises(IntegrityError):
-            db.execute(invalid_status)
+            db.execute(invalid_status, {"user_id": user.id})
         db.rollback()
         assert db.scalar(select(User.id).where(User.id == user.id)) == user.id
 
