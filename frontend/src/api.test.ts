@@ -62,6 +62,27 @@ describe('API client', () => {
     expect(new Headers(init?.headers).has('Authorization')).toBe(false)
   })
 
+  it('shares one refresh request across concurrent protected API calls', async () => {
+    const requestCounts = new Map<string, number>()
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const path = String(input)
+      const count = (requestCounts.get(path) ?? 0) + 1
+      requestCounts.set(path, count)
+
+      if (path === '/auth/refresh') return jsonResponse({ authenticated: true })
+      if (count === 1) return jsonResponse({
+        detail: 'Invalid or missing authentication credentials.',
+      }, 401)
+      return jsonResponse(path === '/stats/summary' ? {} : [])
+    })
+
+    await Promise.all([api.summary(), api.platforms()])
+
+    expect(requestCounts.get('/auth/refresh')).toBe(1)
+    expect(requestCounts.get('/stats/summary')).toBe(2)
+    expect(requestCounts.get('/stats/platforms')).toBe(2)
+  })
+
   it('returns useful API validation errors', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
       detail: 'Company cannot be blank.',
