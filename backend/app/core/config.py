@@ -23,3 +23,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+if os.getenv("APP_ENV", "development").lower() == "production" and not COOKIE_SECURE:
+    raise RuntimeError("COOKIE_SECURE=true is required when APP_ENV=production.")
