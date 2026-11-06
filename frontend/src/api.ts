@@ -88,7 +88,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const detail = typeof body?.detail === 'string'
       ? body.detail
       : `Request failed (${response.status}).`
-    throw new ApiError(detail, response.status)
+    throw new ApiError(`${path} — ${detail}`, response.status)
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
