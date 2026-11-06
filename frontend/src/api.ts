@@ -17,9 +17,13 @@ const DEMO_KEY = 'applyboard-demo-session'
 // Share one refresh request across concurrent API calls. Dashboard queries can all
 // receive 401 together; rotating the same refresh cookie in parallel makes all but
 // one request fail and can overwrite the newly issued cookie with a deletion.
-let refreshPromise: Promise<boolean> | null = null
+type RefreshResult =
+  | { ok: true }
+  | { ok: false; status: number; detail: string }
 
-async function refreshSession(): Promise<boolean> {
+let refreshPromise: Promise<RefreshResult> | null = null
+
+async function refreshSession(): Promise<RefreshResult> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
@@ -27,9 +31,16 @@ async function refreshSession(): Promise<boolean> {
           method: 'POST',
           credentials: 'include',
         })
-        return response.ok
+        if (response.ok) return { ok: true }
+
+        const body = await response.json().catch(() => null) as { detail?: string } | null
+        return {
+          ok: false,
+          status: response.status,
+          detail: typeof body?.detail === 'string' ? body.detail : `Request failed (${response.status}).`,
+        }
       } catch {
-        return false
+        return { ok: false, status: 0, detail: 'Network error while refreshing the session.' }
       } finally {
         refreshPromise = null
       }
@@ -72,11 +83,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     '/auth/refresh',
     '/auth/logout',
   ]
+  let refreshFailure: Extract<RefreshResult, { ok: false }> | null = null
   if (response.status === 401 && !publicAuthPaths.includes(path)) {
     const refreshed = await refreshSession()
-    if (refreshed) {
+    if (refreshed.ok) {
       response = await fetch(`${API_BASE_URL}${path}`, requestInit)
     } else {
+      refreshFailure = refreshed
       sessionStorage.removeItem(AUTH_KEY)
       sessionStorage.removeItem(DEMO_KEY)
       window.dispatchEvent(new Event('auth:expired'))
@@ -88,7 +101,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const detail = typeof body?.detail === 'string'
       ? body.detail
       : `Request failed (${response.status}).`
-    throw new ApiError(`${path} — ${detail}`, response.status)
+    const refreshDiagnostic = refreshFailure
+      ? refreshFailure.status
+        ? ` (session refresh failed: HTTP ${refreshFailure.status} — ${refreshFailure.detail})`
+        : ` (session refresh failed: ${refreshFailure.detail})`
+      : ''
+    throw new ApiError(`${path} — ${detail}${refreshDiagnostic}`, response.status)
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
