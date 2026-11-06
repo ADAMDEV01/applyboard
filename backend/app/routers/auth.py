@@ -199,7 +199,7 @@ def refresh_session(
         )
         .values(revoked_at=now)
     )
-    if consumed.rowcount != 1:
+    if getattr(consumed, "rowcount", 0) != 1:
         db.rollback()
         _clear_session_cookies(response)
         raise HTTPException(
