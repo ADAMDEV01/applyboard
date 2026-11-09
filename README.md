@@ -281,3 +281,16 @@ Use **Try the demo workspace** on the login page to open a seeded, read-only acc
 ### Application history
 
 ![Application history](frontend/screenshots/application-history.png)
+
+## Skills demonstrated
+
+- **Frontend:** React, TypeScript, Vite, responsive UI development, charts, search, and Kanban workflows.
+- **Backend:** Python, FastAPI, REST API design, request validation, pagination, filtering, and application workflows.
+- **Data:** PostgreSQL, SQLAlchemy, Alembic migrations, relational modeling, and SQLite for zero-setup local development.
+- **Security:** Argon2 password hashing, HttpOnly cookies, rotating refresh sessions, per-user authorization, and controlled status transitions.
+- **Quality:** pytest, backend coverage enforcement, automated tests, and GitHub Actions CI.
+- **Delivery:** Docker Compose, environment-based configuration, and API documentation with OpenAPI.
+
+## Repository
+
+- Source code: https://github.com/ADAMDEV01/applyboard
