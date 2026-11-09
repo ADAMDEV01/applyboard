@@ -294,3 +294,8 @@ Use **Try the demo workspace** on the login page to open a seeded, read-only acc
 ## Repository
 
 - Source code: https://github.com/ADAMDEV01/applyboard
+
+## Live deployment
+
+- **Live application:** https://applyboard-5gpsqgnqk-addrryhby-5992.vercel.app
+- **GitHub repository:** https://github.com/ADAMDEV01/applyboard
