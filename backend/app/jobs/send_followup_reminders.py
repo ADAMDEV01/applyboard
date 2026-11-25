@@ -56,21 +56,31 @@ def send_message(message: EmailMessage, recipient: str) -> None:
             server.send_message(message)
 
 
+def due_reminder_statement(now: datetime, cutoff: datetime):
+    """Claim eligible reminders without allowing concurrent workers to send duplicates.
+
+    PostgreSQL holds row locks until the caller commits. SKIP LOCKED lets a second
+    cron invocation process other users' reminders instead of claiming these rows.
+    """
+    return (
+        select(Application, User.email)
+        .join(User, User.id == Application.user_id)
+        .where(
+            Application.follow_up_at >= now,
+            Application.follow_up_at <= cutoff,
+            Application.follow_up_reminder_sent_at.is_(None),
+            Application.status.not_in(TERMINAL_STATUSES),
+        )
+        .order_by(User.email, Application.follow_up_at, Application.id)
+        .with_for_update(skip_locked=True, of=Application)
+    )
+
+
 def main() -> int:
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(hours=24)
     with SessionLocal() as db:
-        due_rows = db.execute(
-            select(Application, User.email)
-            .join(User, User.id == Application.user_id)
-            .where(
-                Application.follow_up_at >= now,
-                Application.follow_up_at <= cutoff,
-                Application.follow_up_reminder_sent_at.is_(None),
-                Application.status.not_in(TERMINAL_STATUSES),
-            )
-            .order_by(User.email, Application.follow_up_at)
-        ).all()
+        due_rows = db.execute(due_reminder_statement(now, cutoff)).all()
 
         grouped: dict[str, list[Application]] = defaultdict(list)
         for application, email in due_rows:

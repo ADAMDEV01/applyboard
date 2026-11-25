@@ -157,7 +157,22 @@ def update_application(
     db: Annotated[Session, Depends(get_db)],
 ) -> Application:
     ensure_writable_user(current_user)
-    application = get_owned_application(application_id, current_user.id, db)
+    # Lock the owned row before validating its current status. Without this,
+    # two simultaneous requests can both validate against the same stale status
+    # and write contradictory history events.
+    application = db.scalar(
+        select(Application)
+        .where(
+            Application.id == application_id,
+            Application.user_id == current_user.id,
+        )
+        .with_for_update()
+    )
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found.",
+        )
     update_data = payload.model_dump(exclude_unset=True)
 
     requested_status = update_data.get("status")

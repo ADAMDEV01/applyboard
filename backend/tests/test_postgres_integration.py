@@ -11,7 +11,18 @@ from sqlalchemy import create_engine, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import Application, ApplicationStatus, RefreshSession, User
+from fastapi import HTTPException
+from app.models import (
+    Application,
+    ApplicationEvent,
+    ApplicationEventType,
+    ApplicationStatus,
+    RefreshSession,
+    User,
+)
+from app.jobs.send_followup_reminders import due_reminder_statement
+from app.routers.applications import update_application
+from app.schemas.application import ApplicationUpdate
 
 
 @pytest.fixture(scope="module")
@@ -151,3 +162,137 @@ def test_postgres_unique_email_constraint_is_enforced(
             db.commit()
         db.rollback()
         assert db.scalar(select(User.id).where(User.email == email)) is not None
+
+
+
+def test_postgres_concurrent_status_updates_keep_event_history_linear(
+    postgres_sessions: sessionmaker[Session],
+) -> None:
+    with postgres_sessions() as db:
+        user = _new_user(db)
+        application = Application(
+            user_id=user.id,
+            company="Concurrent History Co",
+            role="Engineer",
+            platform="PostgreSQL integration",
+            status=ApplicationStatus.APPLIED,
+            applied_at=datetime.now(timezone.utc),
+        )
+        application.events.append(
+            ApplicationEvent(
+                previous_status=None,
+                new_status=ApplicationStatus.APPLIED,
+                event_type=ApplicationEventType.CREATED,
+                note="Created for concurrency test",
+            )
+        )
+        db.add(application)
+        db.commit()
+        user_id = user.id
+        application_id = application.id
+
+    barrier = threading.Barrier(2)
+
+    def apply_status(target: ApplicationStatus) -> tuple[str, int | str]:
+        with postgres_sessions() as db:
+            user = db.get(User, user_id)
+            assert user is not None
+            barrier.wait(timeout=10)
+            try:
+                result = update_application(
+                    application_id,
+                    ApplicationUpdate(status=target),
+                    user,
+                    db,
+                )
+                return ("ok", result.status.value)
+            except HTTPException as error:
+                db.rollback()
+                return ("http_error", error.status_code)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(
+            apply_status,
+            [ApplicationStatus.REPLIED, ApplicationStatus.INTERVIEW],
+        ))
+
+    successful_updates = sum(outcome[0] == "ok" for outcome in outcomes)
+    assert successful_updates >= 1
+    assert all(
+        outcome[0] == "ok" or outcome == ("http_error", 409)
+        for outcome in outcomes
+    )
+
+    with postgres_sessions() as db:
+        saved = db.get(Application, application_id)
+        assert saved is not None
+        history = list(
+            db.scalars(
+                select(ApplicationEvent)
+                .where(ApplicationEvent.application_id == application_id)
+                .order_by(ApplicationEvent.id)
+            )
+        )
+        transitions = [
+            event for event in history
+            if event.event_type == ApplicationEventType.STATUS_CHANGED
+        ]
+        assert len(transitions) == successful_updates
+        previous = ApplicationStatus.APPLIED
+        for event in transitions:
+            assert event.previous_status == previous
+            assert event.new_status is not None
+            previous = event.new_status
+        assert saved.status == previous
+        user = db.get(User, user_id)
+        assert user is not None
+        db.delete(user)
+        db.commit()
+
+
+def test_postgres_follow_up_claims_skip_rows_locked_by_another_worker(
+    postgres_sessions: sessionmaker[Session],
+) -> None:
+    now = datetime.now(timezone.utc)
+    with postgres_sessions() as db:
+        user = _new_user(db)
+        application = Application(
+            user_id=user.id,
+            company="Reminder Lock Co",
+            role="Engineer",
+            platform="PostgreSQL integration",
+            status=ApplicationStatus.APPLIED,
+            applied_at=now,
+            follow_up_at=now + timedelta(hours=4),
+        )
+        db.add(application)
+        db.commit()
+        user_id = user.id
+        application_id = application.id
+
+    first_worker = postgres_sessions()
+    second_worker = postgres_sessions()
+    try:
+        window_now = datetime.now(timezone.utc)
+        statement = due_reminder_statement(window_now, window_now + timedelta(hours=24))
+
+        first_claim = first_worker.execute(statement).all()
+        assert any(row[0].id == application_id for row in first_claim)
+
+        # The first transaction still owns the row lock, so a concurrent worker
+        # must skip it rather than sending the same reminder at the same time.
+        second_claim = second_worker.execute(statement).all()
+        assert not any(row[0].id == application_id for row in second_claim)
+
+        first_worker.commit()
+        reclaimed = second_worker.execute(statement).all()
+        assert any(row[0].id == application_id for row in reclaimed)
+        second_worker.rollback()
+    finally:
+        first_worker.close()
+        second_worker.close()
+        with postgres_sessions() as db:
+            user = db.get(User, user_id)
+            if user is not None:
+                db.delete(user)
+                db.commit()
