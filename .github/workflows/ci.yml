@@ -55,10 +55,16 @@ jobs:
       - name: Run isolated SQLite unit and API tests
         run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
       - name: Publish backend coverage
+        if: ${{ env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: backend/coverage.xml
           fail_ci_if_error: false
+      - name: Skip optional Codecov upload when no token is configured
+        if: ${{ env.CODECOV_TOKEN == '' }}
+        run: echo "::notice::CODECOV_TOKEN is not configured; coverage remains available in the CI log."
       - name: Build and smoke-test Docker Compose
         run: |
           docker compose -f ../docker-compose.yml up --build -d --wait
