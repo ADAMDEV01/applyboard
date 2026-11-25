@@ -197,6 +197,30 @@ def claim_pending_outbox(
     return claimed
 
 
+def renew_claimed_outbox(
+    message_ids: list[int],
+    *,
+    worker_id: str,
+    now: datetime | None = None,
+) -> int:
+    """Extend leases for the messages this worker has not processed yet."""
+    if not message_ids:
+        return 0
+
+    with SessionLocal() as db:
+        result = db.execute(
+            update(ReminderOutbox)
+            .where(
+                ReminderOutbox.id.in_(message_ids),
+                ReminderOutbox.status == "processing",
+                ReminderOutbox.lock_owner == worker_id,
+            )
+            .values(locked_at=now or datetime.now(timezone.utc))
+        )
+        db.commit()
+        return int(result.rowcount or 0)
+
+
 def retry_delay(attempts: int) -> timedelta:
     seconds = min(60 * (2 ** max(attempts - 1, 0)), MAX_RETRY_DELAY_SECONDS)
     return timedelta(seconds=seconds)
@@ -310,7 +334,10 @@ def process_pending_outbox(
         )
 
     counts: dict[str, int] = defaultdict(int)
-    for message_id in claimed_ids:
+    for index, message_id in enumerate(claimed_ids):
+        # Claims are processed sequentially. Renew every not-yet-processed lease
+        # before each SMTP operation so a slow batch cannot expire in the queue.
+        renew_claimed_outbox(claimed_ids[index:], worker_id=worker_id)
         counts[process_claimed_message(message_id, worker_id=worker_id)] += 1
     return dict(counts)
 
