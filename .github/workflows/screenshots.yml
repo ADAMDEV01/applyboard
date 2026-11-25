@@ -15,9 +15,9 @@ jobs:
       CORS_ALLOWED_ORIGINS: http://localhost:3000
       COOKIE_SECURE: "false"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose up --build -d --wait
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -46,7 +46,7 @@ jobs:
           await page.screenshot({ path: '/tmp/applyboard-screenshots/application-history.png', fullPage: true });
           await browser.close();
           NODE
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: applyboard-demo-screenshots
           path: /tmp/applyboard-screenshots/*.png
