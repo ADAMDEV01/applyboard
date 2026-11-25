@@ -76,6 +76,7 @@ def test_successful_delivery_marks_outbox_and_application_sent(
     monkeypatch,
 ) -> None:
     factory, engine = make_database(tmp_path)
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "reminders@example.test")
     try:
         application_id, _ = create_due_application(factory)
         enqueue_one(factory, datetime.now(timezone.utc))
@@ -126,6 +127,7 @@ def test_smtp_failure_is_requeued_with_backoff_and_not_marked_sent(
     monkeypatch,
 ) -> None:
     factory, engine = make_database(tmp_path)
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "reminders@example.test")
     try:
         application_id, _ = create_due_application(factory)
         enqueue_one(factory, datetime.now(timezone.utc))
