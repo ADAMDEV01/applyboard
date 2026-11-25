@@ -80,6 +80,10 @@ def test_successful_delivery_marks_outbox_and_application_sent(
         application_id, _ = create_due_application(factory)
         enqueue_one(factory, datetime.now(timezone.utc))
         with factory() as db:
+            owner = db.scalar(select(User).where(User.email == "outbox-user@example.test"))
+            assert owner is not None
+            owner.email = "updated-outbox-user@example.test"
+            db.commit()
             claimed = job.claim_pending_outbox(
                 db,
                 worker_id="worker-test",
@@ -109,7 +113,7 @@ def test_successful_delivery_marks_outbox_and_application_sent(
             assert outbox.sent_at is not None
             assert outbox.lock_owner is None
             assert application.follow_up_reminder_sent_at is not None
-            assert captured[0][1] == "outbox-user@example.test"
+            assert captured[0][1] == "updated-outbox-user@example.test"
             assert captured[0][0]["Message-ID"] == (
                 f"<applyboard-reminder-{outbox.dedupe_key}@applyboard>"
             )
@@ -236,3 +240,49 @@ def test_retry_backoff_is_bounded() -> None:
     assert job.retry_delay(1) == timedelta(seconds=60)
     assert job.retry_delay(2) == timedelta(seconds=120)
     assert job.retry_delay(20) == timedelta(hours=6)
+
+
+
+def test_cancelled_outbox_is_rearmed_when_user_restores_the_same_schedule(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    factory, engine = make_database(tmp_path)
+    try:
+        application_id, scheduled_for = create_due_application(factory)
+        enqueue_one(factory, datetime.now(timezone.utc))
+        with factory() as db:
+            claimed = job.claim_pending_outbox(
+                db,
+                worker_id="worker-rearm",
+                now=datetime.now(timezone.utc),
+                batch_size=1,
+            )
+            application = db.get(Application, application_id)
+            assert application is not None
+            application.follow_up_at = scheduled_for + timedelta(days=2)
+            db.commit()
+
+        monkeypatch.setattr(job, "SessionLocal", factory)
+        monkeypatch.setattr(job, "send_message", lambda *_args: None)
+        assert job.process_claimed_message(
+            claimed[0],
+            worker_id="worker-rearm",
+        ) == "cancelled"
+
+        with factory() as db:
+            application = db.get(Application, application_id)
+            assert application is not None
+            application.follow_up_at = scheduled_for
+            db.commit()
+
+        assert enqueue_one(factory, datetime.now(timezone.utc)) == 1
+        with factory() as db:
+            row = db.get(ReminderOutbox, claimed[0])
+            assert row is not None
+            assert row.status == "pending"
+            assert row.attempts == 0
+            assert row.lock_owner is None
+            assert row.last_error is None
+    finally:
+        engine.dispose()
