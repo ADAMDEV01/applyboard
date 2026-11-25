@@ -33,8 +33,8 @@ jobs:
       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
       RATE_LIMIT_STORAGE_URI: memory://
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -42,6 +42,8 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
       - run: python -m pip install -r requirements-dev.txt
+      - name: Audit backend runtime dependencies
+        run: pip-audit -r requirements.txt
       - run: ruff check app tests
       - run: mypy app --ignore-missing-imports --follow-imports=silent
       - name: Apply PostgreSQL migrations
@@ -53,7 +55,7 @@ jobs:
       - name: Run isolated SQLite unit and API tests
         run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml
       - name: Publish backend coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: backend/coverage.xml
           fail_ci_if_error: false
@@ -72,13 +74,14 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run test
       - run: npm run build
