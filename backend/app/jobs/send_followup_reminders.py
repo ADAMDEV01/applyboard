@@ -106,10 +106,21 @@ def enqueue_due_reminders(
         if scheduled_for is None:
             continue
         dedupe_key = reminder_dedupe_key(application.id, scheduled_for)
-        exists = db.scalar(
-            select(ReminderOutbox.id).where(ReminderOutbox.dedupe_key == dedupe_key)
+        existing = db.scalar(
+            select(ReminderOutbox).where(ReminderOutbox.dedupe_key == dedupe_key)
         )
-        if exists is not None:
+        if existing is not None:
+            # A user may move a reminder away and later restore the exact same
+            # timestamp. Re-arm the cancelled deduplicated row instead of losing it.
+            if existing.status == "cancelled":
+                existing.status = "pending"
+                existing.attempts = 0
+                existing.available_at = now
+                existing.locked_at = None
+                existing.lock_owner = None
+                existing.sent_at = None
+                existing.last_error = None
+                created += 1
             continue
         db.add(
             ReminderOutbox(
@@ -231,9 +242,18 @@ def process_claimed_message(message_id: int, *, worker_id: str) -> str:
                     outbox.last_error = "Reminder became stale before delivery."
                     return "cancelled"
 
+                current_user = db.get(User, application.user_id)
+                if current_user is None:
+                    outbox.status = "cancelled"
+                    outbox.lock_owner = None
+                    outbox.locked_at = None
+                    outbox.last_error = "Application owner no longer exists."
+                    return "cancelled"
+                outbox.recipient_email = current_user.email
+
                 message = build_reminder_email([application])
                 message["Message-ID"] = f"<applyboard-reminder-{outbox.dedupe_key}@applyboard>"
-                send_message(message, outbox.recipient_email)
+                send_message(message, current_user.email)
 
                 sent_at = datetime.now(timezone.utc)
                 application.follow_up_reminder_sent_at = sent_at
