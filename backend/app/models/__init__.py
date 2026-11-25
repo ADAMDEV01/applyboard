@@ -2,6 +2,7 @@ from app.models.application import Application, ApplicationStatus
 from app.models.application_event import ApplicationEvent, ApplicationEventType
 from app.models.user import User
 from app.models.refresh_session import RefreshSession
+from app.models.reminder_outbox import ReminderOutbox
 
 __all__ = [
     "Application",
@@ -10,4 +11,5 @@ __all__ = [
     "ApplicationStatus",
     "User",
     "RefreshSession",
+    "ReminderOutbox",
 ]

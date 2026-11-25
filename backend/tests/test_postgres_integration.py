@@ -18,9 +18,10 @@ from app.models import (
     ApplicationEventType,
     ApplicationStatus,
     RefreshSession,
+    ReminderOutbox,
     User,
 )
-from app.jobs.send_followup_reminders import due_reminder_statement
+from app.jobs.send_followup_reminders import claim_pending_outbox, due_reminder_statement
 from app.routers.applications import update_application
 from app.schemas.application import ApplicationUpdate
 
@@ -296,3 +297,65 @@ def test_postgres_follow_up_claims_skip_rows_locked_by_another_worker(
             if user is not None:
                 db.delete(user)
                 db.commit()
+
+
+
+def test_postgres_outbox_message_can_be_claimed_by_only_one_worker(
+    postgres_sessions: sessionmaker[Session],
+) -> None:
+    now = datetime.now(timezone.utc)
+    with postgres_sessions() as db:
+        user = _new_user(db)
+        application = Application(
+            user_id=user.id,
+            company="Outbox Lock Co",
+            role="Engineer",
+            platform="PostgreSQL integration",
+            status=ApplicationStatus.APPLIED,
+            applied_at=now - timedelta(days=1),
+            follow_up_at=now + timedelta(hours=2),
+        )
+        db.add(application)
+        db.flush()
+        outbox = ReminderOutbox(
+            application_id=application.id,
+            recipient_email=user.email,
+            company=application.company,
+            role=application.role,
+            scheduled_for=application.follow_up_at,
+            dedupe_key=uuid.uuid4().hex,
+            status="pending",
+            attempts=0,
+            available_at=now - timedelta(seconds=1),
+        )
+        db.add(outbox)
+        db.commit()
+        user_id = user.id
+        outbox_id = outbox.id
+
+    barrier = threading.Barrier(2)
+
+    def claim(worker_id: str) -> list[int]:
+        with postgres_sessions() as db:
+            barrier.wait(timeout=10)
+            return claim_pending_outbox(
+                db,
+                worker_id=worker_id,
+                now=now,
+                batch_size=1,
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        claims = list(pool.map(claim, ["worker-a", "worker-b"]))
+
+    assert sum(outbox_id in claimed for claimed in claims) == 1
+
+    with postgres_sessions() as db:
+        stored = db.get(ReminderOutbox, outbox_id)
+        assert stored is not None
+        assert stored.status == "processing"
+        assert stored.attempts == 1
+        user = db.get(User, user_id)
+        assert user is not None
+        db.delete(user)
+        db.commit()

@@ -11,7 +11,7 @@ Applyboard is a full-stack job-application tracker built as a portfolio project.
 - Dashboard analytics for unique applications, response rates, response time, follow-ups, and possible ghosting.
 - Responsive React/TypeScript interface with status/platform charts, application search, history, and a Kanban board.
 - CSV import/export for application records.
-- Daily email reminders for follow-ups due in the next 24 hours (SMTP configuration required).
+- Durable email reminders for follow-ups due in the next 24 hours, backed by a PostgreSQL outbox with deduplication, worker leases, retry backoff, and stale-reminder cancellation (SMTP configuration required).
 - Alembic-managed PostgreSQL schema; SQLite is the zero-setup local default.
 - Isolated backend tests with coverage enforcement, Docker Compose, and GitHub Actions.
 
@@ -191,6 +191,12 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `SMTP_FROM_EMAIL` | For email reminders | Verified sender email address |
 | `SMTP_TIMEOUT_SECONDS` | No | SMTP connection timeout; defaults to `20` |
 
+### Durable reminder delivery
+
+The Render cron worker runs every five minutes. It first inserts one outbox row per application/scheduled follow-up pair; the unique deduplication key prevents the same schedule from being enqueued more than once. Workers claim due rows with PostgreSQL `FOR UPDATE SKIP LOCKED`, a five-minute lease, and a bounded retry budget. Transient SMTP failures are rescheduled with exponential backoff (60 seconds up to six hours); exhausted rows remain in `failed` for operator inspection. If a follow-up date changes before delivery, the old outbox row is cancelled.
+
+SMTP is an external side effect, so delivery is **at-least-once**, not exactly-once: a process crash after the SMTP server accepts a message but before the database commit can lead to a retry. A stable `Message-ID` is reused across retries to help downstream mail systems deduplicate. Configure the SMTP secrets on the Render cron service; the outbox itself is persisted in the shared PostgreSQL database.
+
 
 For production, set `APP_ENV=production` and `COOKIE_SECURE=true`. Set `CORS_ALLOWED_ORIGINS` to exact frontend origins. Configure `RATE_LIMIT_STORAGE_URI` to a shared Redis instance whenever multiple API workers or instances are used; the Render Blueprint requires this value instead of silently defaulting to per-process memory storage. CORS permits only GET, POST, PATCH, DELETE, and OPTIONS, plus Authorization, Content-Type, and X-Requested-With headers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
 
@@ -240,7 +246,7 @@ The Compose stack starts PostgreSQL with a named persistent volume, waits for th
 
 ## Deployment (Render)
 
-The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and daily follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide a shared Redis URL for `RATE_LIMIT_STORAGE_URI` and the SMTP host, username, password, and verified sender address for the cron service. The API will fail closed if production is configured with insecure cookies or process-local rate-limit storage. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
+The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and five-minute durable follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide a shared Redis URL for `RATE_LIMIT_STORAGE_URI` and the SMTP host, username, password, and verified sender address for the cron service. The API will fail closed if production is configured with insecure cookies or process-local rate-limit storage. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
 
 ## Deployment (manual Render example)
 
