@@ -48,6 +48,12 @@ class Application(Base):
         Index("ix_applications_user_status", "user_id", "status"),
         Index("ix_applications_user_applied_at", "user_id", "applied_at"),
         Index("ix_applications_user_follow_up_at", "user_id", "follow_up_at"),
+        Index(
+            "ix_applications_reminder_due",
+            "follow_up_reminder_sent_at",
+            "follow_up_at",
+            "status",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
