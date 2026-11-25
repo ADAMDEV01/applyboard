@@ -50,7 +50,7 @@ services:
   - type: cron
     name: applyboard-follow-up-reminders
     runtime: docker
-    schedule: "0 0 * * *"
+    schedule: "*/5 * * * *"
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     dockerCommand: sh -c 'alembic upgrade head && python -m app.jobs.send_followup_reminders'
