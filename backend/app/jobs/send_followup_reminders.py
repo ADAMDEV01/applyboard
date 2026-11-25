@@ -6,8 +6,10 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
+from typing import Any, cast
 
 from sqlalchemy import and_, or_, select, update
+from sqlalchemy.engine import CursorResult
 
 from app.db.database import SessionLocal
 from app.models import (
@@ -218,7 +220,7 @@ def renew_claimed_outbox(
             .values(locked_at=now or datetime.now(timezone.utc))
         )
         db.commit()
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult[Any], result).rowcount or 0)
 
 
 def retry_delay(attempts: int) -> timedelta:
