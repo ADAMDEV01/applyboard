@@ -292,8 +292,10 @@ def test_cancelled_outbox_is_rearmed_when_user_restores_the_same_schedule(
 
 def test_renew_claimed_outbox_extends_only_the_current_workers_lease(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     factory, engine = make_database(tmp_path)
+    monkeypatch.setattr(job, "SessionLocal", factory)
     try:
         create_due_application(factory)
         enqueue_one(factory, datetime.now(timezone.utc))
