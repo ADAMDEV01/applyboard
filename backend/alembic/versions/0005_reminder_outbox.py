@@ -44,6 +44,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("dedupe_key", name="uq_reminder_outbox_dedupe_key"),
     )
     op.create_index(
+        "ix_applications_reminder_due",
+        "applications",
+        ["follow_up_reminder_sent_at", "follow_up_at", "status"],
+    )
+    op.create_index(
         "ix_reminder_outbox_due",
         "reminder_outbox",
         ["status", "available_at", "created_at"],
@@ -56,6 +61,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_applications_reminder_due", table_name="applications")
     op.drop_index("ix_reminder_outbox_application", table_name="reminder_outbox")
     op.drop_index("ix_reminder_outbox_due", table_name="reminder_outbox")
     op.drop_table("reminder_outbox")
