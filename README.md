@@ -246,7 +246,7 @@ The Compose stack starts PostgreSQL with a named persistent volume, waits for th
 
 ## Deployment (Render)
 
-The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and five-minute durable follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide a shared Redis URL for `RATE_LIMIT_STORAGE_URI` and the SMTP host, username, password, and verified sender address for the cron service. The API will fail closed if production is configured with insecure cookies or process-local rate-limit storage. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
+The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and five-minute durable follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide a shared Redis URL for `RATE_LIMIT_STORAGE_URI` and the SMTP host, username, password, and verified sender address for the cron service. The API fails closed at startup unless production uses persistent PostgreSQL, a JWT secret of at least 32 random bytes, Secure cookies, an exact HTTPS CORS origin allowlist, and shared Redis-backed rate limiting. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
 
 ## Deployment (manual Render example)
 
