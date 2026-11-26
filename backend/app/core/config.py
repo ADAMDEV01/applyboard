@@ -2,6 +2,7 @@ import os
 from urllib.parse import urlsplit
 
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 
 def normalize_database_url(database_url: str) -> str:
@@ -26,7 +27,7 @@ def validate_production_config(
 
     try:
         database_backend = make_url(database_url).get_backend_name()
-    except (TypeError, ValueError) as error:
+    except (ArgumentError, TypeError, ValueError) as error:
         raise RuntimeError("A valid PostgreSQL DATABASE_URL is required in production.") from error
     if database_backend != "postgresql":
         raise RuntimeError("A persistent PostgreSQL DATABASE_URL is required in production.")
@@ -37,7 +38,8 @@ def validate_production_config(
     if not cookie_secure:
         raise RuntimeError("COOKIE_SECURE=true is required when APP_ENV=production.")
 
-    if not rate_limit_storage_uri or rate_limit_storage_uri.startswith("memory://"):
+    storage = urlsplit(rate_limit_storage_uri)
+    if storage.scheme not in {"redis", "rediss"} or not storage.netloc:
         raise RuntimeError("A shared Redis RATE_LIMIT_STORAGE_URI is required in production.")
 
     if not cors_allowed_origins or "*" in cors_allowed_origins:
