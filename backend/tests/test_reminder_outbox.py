@@ -288,3 +288,82 @@ def test_cancelled_outbox_is_rearmed_when_user_restores_the_same_schedule(
             assert row.last_error is None
     finally:
         engine.dispose()
+
+
+def test_renew_claimed_outbox_extends_only_the_current_workers_lease(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    factory, engine = make_database(tmp_path)
+    monkeypatch.setattr(job, "SessionLocal", factory)
+    try:
+        create_due_application(factory)
+        enqueue_one(factory, datetime.now(timezone.utc))
+        with factory() as db:
+            claimed = job.claim_pending_outbox(
+                db,
+                worker_id="lease-owner",
+                now=datetime.now(timezone.utc),
+                batch_size=1,
+            )
+        assert len(claimed) == 1
+
+        renewed_at = datetime.now(timezone.utc) + timedelta(minutes=1)
+        assert job.renew_claimed_outbox(
+            claimed,
+            worker_id="different-worker",
+            now=renewed_at,
+        ) == 0
+        assert job.renew_claimed_outbox(
+            claimed,
+            worker_id="lease-owner",
+            now=renewed_at,
+        ) == 1
+
+        with factory() as db:
+            row = db.get(ReminderOutbox, claimed[0])
+            assert row is not None
+            assert row.lock_owner == "lease-owner"
+            assert row.locked_at == renewed_at
+    finally:
+        engine.dispose()
+
+
+def test_pending_batch_renews_remaining_leases_before_each_send(monkeypatch) -> None:
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+    claimed_ids = [11, 12, 13]
+    renewals: list[tuple[list[int], str]] = []
+
+    monkeypatch.setattr(job, "SessionLocal", FakeSession)
+    monkeypatch.setattr(
+        job,
+        "claim_pending_outbox",
+        lambda _db, **_kwargs: claimed_ids,
+    )
+    monkeypatch.setattr(
+        job,
+        "renew_claimed_outbox",
+        lambda remaining, *, worker_id, **_kwargs: (
+            renewals.append((remaining, worker_id)) or len(remaining)
+        ),
+    )
+    monkeypatch.setattr(
+        job,
+        "process_claimed_message",
+        lambda _message_id, *, worker_id: "sent",
+    )
+
+    results = job.process_pending_outbox(worker_id="batch-worker")
+
+    assert results == {"sent": 3}
+    assert renewals == [
+        ([11, 12, 13], "batch-worker"),
+        ([12, 13], "batch-worker"),
+        ([13], "batch-worker"),
+    ]
