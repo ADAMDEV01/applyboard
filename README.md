@@ -182,7 +182,6 @@ Vite serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` bef
 | `POSTGRES_USER` | Docker Compose | Local PostgreSQL username |
 | `POSTGRES_PASSWORD` | Docker Compose | Local PostgreSQL password; use URL-safe characters |
 | `POSTGRES_DB` | Docker Compose | Local PostgreSQL database name |
-| `RATE_LIMIT_STORAGE_URI` | Required for multi-worker production | SlowAPI storage URL; configure a shared Redis URL for multiple workers/instances. `memory://` is for local or single-process test use only. |
 | `COOKIE_SECURE` | No | Set `true` behind HTTPS; defaults to `false` for local development |
 | `SMTP_HOST` | For email reminders | SMTP server hostname |
 | `SMTP_PORT` | No | SMTP port; defaults to `587` |
@@ -198,7 +197,7 @@ The Render cron worker runs every five minutes. It first inserts one outbox row 
 SMTP is an external side effect, so delivery is **at-least-once**, not exactly-once: a process crash after the SMTP server accepts a message but before the database commit can lead to a retry. A stable `Message-ID` is reused across retries to help downstream mail systems deduplicate. Configure the SMTP secrets on the Render cron service; the outbox itself is persisted in the shared PostgreSQL database.
 
 
-For production, set `APP_ENV=production` and `COOKIE_SECURE=true`. Set `CORS_ALLOWED_ORIGINS` to exact frontend origins. Configure `RATE_LIMIT_STORAGE_URI` to a shared Redis instance whenever multiple API workers or instances are used; the Render Blueprint requires this value instead of silently defaulting to per-process memory storage. CORS permits only GET, POST, PATCH, DELETE, and OPTIONS, plus Authorization, Content-Type, and X-Requested-With headers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
+For production, set `APP_ENV=production` and `COOKIE_SECURE=true`. Set `CORS_ALLOWED_ORIGINS` to exact frontend origins. API rate limits use atomic PostgreSQL upserts, so every API instance shares the same per-client counters without a separate Redis service. Old hashed client identifiers are pruned after seven days. CORS permits only GET, POST, PATCH, DELETE, and OPTIONS, plus Authorization, Content-Type, and X-Requested-With headers. Never commit real credentials or production URLs. Use a unique random JWT secret for each environment. Root `.env.example` contains placeholders for Compose; copy it to `.env`, replace the secret values, and keep `.env` private. For local backend-only development, set `JWT_SECRET` in the PowerShell session before starting Uvicorn.
 
 ## Migrations
 
@@ -246,7 +245,7 @@ The Compose stack starts PostgreSQL with a named persistent volume, waits for th
 
 ## Deployment (Render)
 
-The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and five-minute durable follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide a shared Redis URL for `RATE_LIMIT_STORAGE_URI` and the SMTP host, username, password, and verified sender address for the cron service. The API fails closed at startup unless production uses persistent PostgreSQL, a JWT secret of at least 32 random bytes, Secure cookies, an exact HTTPS CORS origin allowlist, and shared Redis-backed rate limiting. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
+The repository includes a `render.yaml` Blueprint for the PostgreSQL database, Docker-based FastAPI service, static frontend, and five-minute durable follow-up reminder cron job. Create a new Blueprint from this repository in Render, then provide the SMTP host, username, password, and verified sender address for the cron service. The API fails closed at startup unless production uses persistent PostgreSQL, a JWT secret of at least 32 random bytes, Secure cookies, and an exact HTTPS CORS origin allowlist. Rate limiting is backed by PostgreSQL and shared between API instances. The API's CORS origin is linked to the deployed static-site host. The blueprint provisions resources; it does not deploy until you connect the repository and approve the Blueprint in your Render account.
 
 ## Deployment (manual Render example)
 
@@ -260,7 +259,7 @@ The API sets short-lived access and rotating refresh tokens in `HttpOnly`, `Secu
 
 ## Vercel backend deployment
 
-Set `APP_ENV=production`, `COOKIE_SECURE=true`, and `RATE_LIMIT_STORAGE_URI` to a shared Redis URL in the backend project's Vercel Environment Variables. Set `DATABASE_URL` to an external PostgreSQL connection string using the `postgresql+psycopg://` driver, and set `JWT_SECRET` to a random value of at least 32 bytes for each deployed environment. The API intentionally refuses to start in production if cookies are insecure or rate limits use per-process `memory://` storage. Keep both values private. Vercel's Python function deployment does not run the Dockerfile command that applies migrations, so run migrations separately against that same database after setting the environment variables locally:
+Set `APP_ENV=production` and `COOKIE_SECURE=true` in the backend project's Vercel Environment Variables. Set `DATABASE_URL` to an external PostgreSQL connection string using the `postgresql+psycopg://` driver, and set `JWT_SECRET` to a random value of at least 32 bytes for each deployed environment. API rate limits use the same PostgreSQL database through atomic upserts, not process-local memory or a separate Redis service. Keep secrets private. Vercel's Python function deployment does not run the Dockerfile command that applies migrations, so run migrations separately against that same database after setting the environment variables locally:
 
 ```powershell
 Set-Location .\backend

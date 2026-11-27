@@ -19,7 +19,6 @@ def validate_production_config(
     jwt_secret: str | None,
     cors_allowed_origins: list[str],
     cookie_secure: bool,
-    rate_limit_storage_uri: str,
 ) -> None:
     """Fail closed when production is missing durable, secure service configuration."""
     if app_env.strip().lower() != "production":
@@ -37,10 +36,6 @@ def validate_production_config(
 
     if not cookie_secure:
         raise RuntimeError("COOKIE_SECURE=true is required when APP_ENV=production.")
-
-    storage = urlsplit(rate_limit_storage_uri)
-    if storage.scheme not in {"redis", "rediss"} or not storage.netloc:
-        raise RuntimeError("A shared Redis RATE_LIMIT_STORAGE_URI is required in production.")
 
     if not cors_allowed_origins or "*" in cors_allowed_origins:
         raise RuntimeError("Exact HTTPS CORS_ALLOWED_ORIGINS are required in production.")
@@ -80,7 +75,6 @@ CORS_ALLOWED_ORIGINS = [
 
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").strip().lower() == "true"
-RATE_LIMIT_STORAGE_URI = os.getenv("RATE_LIMIT_STORAGE_URI", "memory://").strip()
 
 validate_production_config(
     app_env=APP_ENV,
@@ -88,5 +82,4 @@ validate_production_config(
     jwt_secret=JWT_SECRET,
     cors_allowed_origins=CORS_ALLOWED_ORIGINS,
     cookie_secure=COOKIE_SECURE,
-    rate_limit_storage_uri=RATE_LIMIT_STORAGE_URI,
 )

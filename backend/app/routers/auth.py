@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import COOKIE_SECURE, CORS_ALLOWED_ORIGINS
-from app.core.limiter import limiter
+from app.core.rate_limit import rate_limit
 from app.core.security import (
     DUMMY_PASSWORD_HASH,
     JWTConfigurationError,
@@ -103,8 +103,8 @@ def _issue_session(
     "/register",
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("auth:register", limit=5, window_seconds=60))],
 )
-@limiter.limit("5/minute")
 def register(
     request: Request,
     payload: UserCreate,
@@ -128,8 +128,11 @@ def register(
     return user
 
 
-@router.post("/login", response_model=SessionRead)
-@limiter.limit("10/minute")
+@router.post(
+    "/login",
+    response_model=SessionRead,
+    dependencies=[Depends(rate_limit("auth:login", limit=10, window_seconds=60))],
+)
 def login(
     request: Request,
     response: Response,
@@ -148,8 +151,11 @@ def login(
     return _issue_session(response, db, user)
 
 
-@router.post("/refresh", response_model=SessionRead)
-@limiter.limit("30/minute")
+@router.post(
+    "/refresh",
+    response_model=SessionRead,
+    dependencies=[Depends(rate_limit("auth:refresh", limit=30, window_seconds=60))],
+)
 def refresh_session(
     request: Request,
     response: Response,
@@ -239,8 +245,11 @@ def read_current_user(current_user: CurrentUser) -> User:
     return current_user
 
 
-@router.post("/demo", response_model=SessionRead)
-@limiter.limit("3/hour")
+@router.post(
+    "/demo",
+    response_model=SessionRead,
+    dependencies=[Depends(rate_limit("auth:demo", limit=3, window_seconds=3600))],
+)
 def demo_login(
     request: Request,
     response: Response,
