@@ -1,17 +1,13 @@
 import logging
-from typing import Any, cast
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import CORS_ALLOWED_ORIGINS
-from app.core.limiter import limiter
 from app.db.database import get_db
 from app.models import Application, RefreshSession, User
 from app.routers.applications import router as applications_router
@@ -22,8 +18,6 @@ from app.routers.stats import router as stats_router
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Job Tracker API", version="0.1.0")
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, cast(Any, _rate_limit_exceeded_handler))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOWED_ORIGINS,
