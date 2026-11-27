@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from hashlib import sha256
 from math import ceil
 from time import time
@@ -11,6 +12,7 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+from app.core import security
 from app.db.database import get_db
 from app.models.rate_limit_bucket import RateLimitBucket
 
@@ -32,7 +34,12 @@ def rate_limit(scope: str, *, limit: int, window_seconds: int) -> Callable:
         db: Session = Depends(get_db),
     ) -> None:
         remote_address = request.client.host if request.client else "unknown"
-        bucket_key = sha256(f"{scope}:{remote_address}".encode("utf-8")).hexdigest()
+        key_material = security.JWT_SECRET or "local-development-rate-limit-key"
+        bucket_key = hmac.new(
+            key_material.encode("utf-8"),
+            f"{scope}:{remote_address}".encode("utf-8"),
+            sha256,
+        ).hexdigest()
         now = time()
         window_floor = now - window_seconds
 
