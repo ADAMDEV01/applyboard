@@ -4,7 +4,7 @@ import hmac
 from hashlib import sha256
 from math import ceil
 from time import time
-from typing import Callable
+from typing import Any, Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import case, delete
@@ -45,20 +45,20 @@ def rate_limit(scope: str, *, limit: int, window_seconds: int) -> Callable:
 
         dialect = db.get_bind().dialect.name
         if dialect == "postgresql":
-            insert = postgresql_insert
+            insert_factory: Any = postgresql_insert
         elif dialect == "sqlite":
-            insert = sqlite_insert
+            insert_factory = sqlite_insert
         else:
             raise RuntimeError("Rate limiting requires PostgreSQL or SQLite.")
 
-        statement = insert(RateLimitBucket).values(
+        insert_statement: Any = insert_factory(RateLimitBucket).values(
             bucket_key=bucket_key,
             window_started_at=now,
             hit_count=1,
             updated_at=now,
         )
         expired = RateLimitBucket.window_started_at <= window_floor
-        statement = statement.on_conflict_do_update(
+        statement: Any = insert_statement.on_conflict_do_update(
             index_elements=[RateLimitBucket.bucket_key],
             set_={
                 "window_started_at": case(
