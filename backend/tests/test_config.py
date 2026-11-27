@@ -30,7 +30,6 @@ def _valid_production_config(**overrides: object) -> dict[str, object]:
         "jwt_secret": "a-cryptographically-random-secret-with-more-than-32-bytes",
         "cors_allowed_origins": ["https://applyboard.example.com"],
         "cookie_secure": True,
-        "rate_limit_storage_uri": "redis://redis.example.com:6379/0",
     }
     config.update(overrides)
     return config
@@ -57,12 +56,6 @@ def test_production_rejects_insecure_cookies() -> None:
         validate_production_config(**_valid_production_config(cookie_secure=False))  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("storage", ["", "memory://", "memory://localhost"])
-def test_production_requires_shared_rate_limit_storage(storage: str) -> None:
-    with pytest.raises(RuntimeError, match="shared Redis"):
-        validate_production_config(**_valid_production_config(rate_limit_storage_uri=storage))  # type: ignore[arg-type]
-
-
 @pytest.mark.parametrize(
     "origins",
     [
@@ -86,5 +79,4 @@ def test_development_keeps_sqlite_memory_rate_limits_and_local_origins() -> None
         jwt_secret=None,
         cors_allowed_origins=["http://localhost:5173"],
         cookie_secure=False,
-        rate_limit_storage_uri="memory://",
     )
