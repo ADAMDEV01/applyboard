@@ -23,8 +23,6 @@ services:
           type: web
           name: applyboard-frontend
           property: url
-      - key: RATE_LIMIT_STORAGE_URI
-        sync: false
       - key: COOKIE_SECURE
         value: "true"
       - key: APP_ENV
